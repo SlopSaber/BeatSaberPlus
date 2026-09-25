@@ -153,9 +153,7 @@ namespace ChatPlexMod_MenuMusic.Data
             if (p_Token.IsCancelled(l_StartSerial))
                 yield break;
 
-            if (l_Loader.isNetworkError
-                || l_Loader.isHttpError
-                || !string.IsNullOrEmpty(l_Loader.error))
+            if (l_Loader.result != UnityWebRequest.Result.Success)
             {
                 Logger.Instance.Error($"[ChatPlexMod_MenuMusic.Data][Music.GetAudioAsync] Can't load audio! {(!string.IsNullOrEmpty(l_Loader.error) ? l_Loader.error : string.Empty)}");
                 p_OnError?.Invoke();

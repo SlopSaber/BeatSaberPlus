@@ -72,7 +72,7 @@ namespace ChatPlexMod_MenuMusic
             if (m_PreviewPlayer != null)
             {
                 m_OriginalMenuMusic             = m_PreviewPlayer._defaultAudioClip;
-                m_OriginalAmbientVolumeScale    = m_PreviewPlayer._ambientVolumeScale;
+                m_OriginalAmbientVolumeScale    = m_PreviewPlayer._volumeScale;
             }
 
             if (UpdateMusicProvider(true))
@@ -109,7 +109,7 @@ namespace ChatPlexMod_MenuMusic
             if (!m_WantsToQuit && m_PreviewPlayer != null && m_OriginalMenuMusic != null)
             {
                 m_PreviewPlayer._defaultAudioClip   = m_OriginalMenuMusic;
-                m_PreviewPlayer._ambientVolumeScale = m_OriginalAmbientVolumeScale;
+                m_PreviewPlayer._volumeScale        = m_OriginalAmbientVolumeScale;
                 m_PreviewPlayer.CrossfadeToDefault();
             }
             else if (m_WantsToQuit && m_PreviewPlayer)
@@ -155,7 +155,6 @@ namespace ChatPlexMod_MenuMusic
             if (MMConfig.Instance.ShowPlayer)
                 CreateFloatingPlayer();
 
-            m_PreviewPlayer._ambientVolumeScale = 0f;
             m_PreviewPlayer._volumeScale        = 0f;
 
             /// Start a new music
@@ -239,7 +238,6 @@ namespace ChatPlexMod_MenuMusic
                         var l_Channel           = l_ChannelController.audioSource;
                         if (l_Channel.isPlaying && l_Channel.clip == m_CurrentMusicAudioClip)
                         {
-                            m_PreviewPlayer._ambientVolumeScale = 1.0f;
                             m_PreviewPlayer._volumeScale        = 1.0f;
                         }
                     }
@@ -247,7 +245,6 @@ namespace ChatPlexMod_MenuMusic
             }
             else
             {
-                m_PreviewPlayer._ambientVolumeScale = MMConfig.Instance.PlaybackVolume;
                 m_PreviewPlayer._volumeScale        = MMConfig.Instance.PlaybackVolume;
             }
 
@@ -304,31 +301,31 @@ namespace ChatPlexMod_MenuMusic
                 yield break;
             }
 
-            GameObject l_ScreenContainer = null;
+            HMUI.ScreenSystem l_ScreenSystem = null;
 
             var l_Waiter = new WaitForSeconds(0.25f);
             while (true)
             {
-                l_ScreenContainer = Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(x => x.name == "ScreenContainer" && x.activeInHierarchy && x.transform.parent?.parent?.name == "UI");
+                // Use the game's menu hierarchy, not an arbitrary object with the
+                // same name in another screen system or an additive scene.
+                l_ScreenSystem = CP_SDK_BS.UI.HMUIUIUtils.GameHMUIScreenSystem;
 
-                if (l_ScreenContainer != null && l_ScreenContainer)
+                if (l_ScreenSystem && l_ScreenSystem.isActiveAndEnabled
+                    && l_ScreenSystem.leftScreen && l_ScreenSystem.mainScreen)
                     break;
 
                 yield return l_Waiter;
             }
 
-            var l_PlayerPosition = new Vector3(-140.0f, 55.0f, 0f);
-            if (IPA.Loader.PluginManager.GetPluginFromId("BetterSongSearch") != null)
-                l_PlayerPosition.y = 62;
-
             try
             {
-                m_PlayerFloatingPanel = CP_SDK.UI.UISystem.FloatingPanelFactory.Create("ChatPlexMod_MenuMusic", l_ScreenContainer.transform);
-                m_PlayerFloatingPanel.SetSize(new Vector2(90.0f, 20.0f));
-                m_PlayerFloatingPanel.SetRadius(140.0f);
-                m_PlayerFloatingPanel.SetTransformDirect(l_PlayerPosition, new Vector3(0.0f, 0.0f, 0.0f));
+                var l_LeftScreen = (RectTransform)l_ScreenSystem.leftScreen.transform;
+                m_PlayerFloatingPanel = CP_SDK.UI.UISystem.FloatingPanelFactory.Create("ChatPlexMod_MenuMusic", l_LeftScreen.parent);
+                m_PlayerFloatingPanel.SetSize(new Vector2(80.0f, 20.0f));
                 m_PlayerFloatingPanel.SetBackground(false);
-                m_PlayerFloatingPanel.RTransform.localScale = Vector3.one;
+                var l_Clearance = IPA.Loader.PluginManager.GetPluginFromId("BetterSongSearch") != null ? 12.0f : 5.0f;
+                m_PlayerFloatingPanel.gameObject.AddComponent<UI.MenuPlayerAnchor>()
+                    .Init(m_PlayerFloatingPanel, l_LeftScreen, l_Clearance);
 
                 m_PlayerFloatingPanelView = CP_SDK.UI.UISystem.CreateViewController<UI.PlayerFloatingPanel>();
                 m_PlayerFloatingPanel.SetViewController(m_PlayerFloatingPanelView);
@@ -560,7 +557,6 @@ namespace ChatPlexMod_MenuMusic
                         if (CP_SDK.ChatPlexSDK.GetModules().Any(x => x.Name == "Audio Tweaker"))
                             l_Volume = 1.0f;
 
-                        m_PreviewPlayer._ambientVolumeScale = l_Volume;
                         m_PreviewPlayer._volumeScale        = l_Volume;
 
                         float l_StartTime = (MMConfig.Instance.StartSongFromBeginning || m_CurrentMusicAudioClip.length < 60) ? 0f : Mathf.Max(UnityEngine.Random.Range(m_CurrentMusicAudioClip.length * 0.2f, m_CurrentMusicAudioClip.length * 0.8f), 0.0f);
@@ -630,7 +626,7 @@ namespace ChatPlexMod_MenuMusic
                         if (!m_IsPaused
                             && !l_Channel.isPlaying
                             && l_Channel.clip == m_CurrentMusicAudioClip
-                            && Array.IndexOf(l_ChannelsController, l_ChannelController) == m_PreviewPlayer._activeChannel)
+                            && l_I == m_PreviewPlayer._activeChannel)
                         {
                             l_Channel.UnPause();
                         }
@@ -655,7 +651,6 @@ namespace ChatPlexMod_MenuMusic
                                 if (CP_SDK.ChatPlexSDK.GetModules().Any(x => x.Name == "Audio Tweaker"))
                                     l_Volume = 1.0f;
 
-                                m_PreviewPlayer._ambientVolumeScale = l_Volume;
                                 m_PreviewPlayer._volumeScale        = l_Volume;
                             }
 
