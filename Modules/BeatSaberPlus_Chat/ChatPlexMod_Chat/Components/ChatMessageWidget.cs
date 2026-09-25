@@ -108,7 +108,7 @@ namespace ChatPlexMod_Chat.Components
             Text.rectTransform.localPosition        = Vector3.zero;
             Text.margin                             = new Vector4(s_LeftRightMargins, s_TopDownMargins, s_LeftRightMargins, s_TopDownMargins);
             Text.raycastTarget                      = false;
-            Text.enableWordWrapping                 = true;
+            Text.textWrappingMode                 = TMPro.TextWrappingModes.Normal;
             TMProProxy.TMP_Text_SetFontStyle(Text, FontStyles.Normal);
             TMProProxy.TMP_Text_SetTextOverflowMode(Text, TextOverflowModes.Overflow);
             TMProProxy.TMP_Text_SetAlignment(Text, TextAlignmentOptions.TopLeft);
@@ -122,7 +122,7 @@ namespace ChatPlexMod_Chat.Components
             SubText.rectTransform.localPosition     = Vector3.zero;
             SubText.margin                          = new Vector4(s_LeftRightMargins, s_TopDownMargins, s_LeftRightMargins, s_TopDownMargins);
             SubText.raycastTarget                   = false;
-            SubText.enableWordWrapping              = true;
+            SubText.textWrappingMode              = TMPro.TextWrappingModes.Normal;
             TMProProxy.TMP_Text_SetFontStyle(SubText, FontStyles.Normal);
             TMProProxy.TMP_Text_SetTextOverflowMode(SubText, TextOverflowModes.Overflow);
             TMProProxy.TMP_Text_SetAlignment(SubText, TextAlignmentOptions.TopLeft);

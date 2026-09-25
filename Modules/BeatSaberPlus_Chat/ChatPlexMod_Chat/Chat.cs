@@ -305,13 +305,6 @@ namespace ChatPlexMod_Chat
             m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>().margin    = new Vector4(0, 4, 0, 0);
             m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>().fontStyle = FontStyles.Normal;
 
-            var l_Images = m_ModerationButton.GetComponentsInChildren<HMUI.ImageView>();
-            foreach (var l_Image in l_Images)
-            {
-                l_Image._skew = 0f;
-                l_Image.SetAllDirty();
-            }
-
             UpdateButton();
 
             m_CreateButtonCoroutine = null;
