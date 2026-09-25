@@ -297,13 +297,18 @@ namespace ChatPlexMod_Chat
                 yield return l_Waiter;
             }
 
-            m_ModerationButton = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat\nModeration", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null);
-            m_ModerationButton.transform.localPosition      = new Vector3(72.50f, 27.00f, 2.60f);
-            m_ModerationButton.transform.localScale         = new Vector3( 0.65f,  0.50f, 0.65f);
-            m_ModerationButton.transform.SetAsFirstSibling();
+            m_ModerationButton = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null);
+            m_ModerationButton.transform.localPosition      = new Vector3(28f, 55f, 2.6f);
+            m_ModerationButton.transform.localScale         = new Vector3(0.65f, 0.45f, 0.65f);
+            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ModerationButton);
             m_ModerationButton.gameObject.SetActive(true);
-            m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>().margin    = new Vector4(0, 4, 0, 0);
-            m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>().fontStyle = FontStyles.Normal;
+            var moderationText = m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>();
+            moderationText.margin = Vector4.zero;
+            moderationText.fontStyle = FontStyles.Normal;
+            moderationText.textWrappingMode = TextWrappingModes.NoWrap;
+            moderationText.enableAutoSizing = true;
+            moderationText.fontSizeMin = 2f;
+            moderationText.fontSizeMax = 3f;
 
             UpdateButton();
 
@@ -323,8 +328,8 @@ namespace ChatPlexMod_Chat
                 return;
 
 #if BEATSABER
-            m_ModerationButton.transform.localPosition  = new Vector3(72.50f, 27.00f, 2.60f);
-            m_ModerationButton.transform.localScale     = new Vector3( 0.65f,  0.50f, 0.65f);
+            m_ModerationButton.transform.localPosition  = new Vector3(28f, 55f, 2.6f);
+            m_ModerationButton.transform.localScale     = new Vector3(0.65f, 0.45f, 0.65f);
 #elif UNITY_TESTING || SYNTHRIDERS || AUDIOTRIP || BOOMBOX || DANCEDASH
 #else
 #error Missing game implementation

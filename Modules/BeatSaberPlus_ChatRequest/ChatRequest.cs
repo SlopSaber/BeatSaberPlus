@@ -288,20 +288,31 @@ namespace BeatSaberPlus_ChatRequest
                 yield return l_Waiter;
             }
 
-            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(l_LevelSelectionNavigationController.transform, "Chat\nRequest", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
-            m_ManagerButtonP.transform.localPosition = new Vector3(72.50f, 41.50f - 3, 2.6f);
-            m_ManagerButtonP.transform.localScale    = new Vector3(0.8f, 0.6f, 0.8f);
-            m_ManagerButtonP.transform.SetAsFirstSibling();
+            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(l_LevelSelectionNavigationController.transform, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
+            m_ManagerButtonP.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
+            m_ManagerButtonP.transform.localScale    = new Vector3(0.65f, 0.45f, 0.65f);
+            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ManagerButtonP);
             m_ManagerButtonP.gameObject.SetActive(false);
-            m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>().fontStyle = FontStyles.Normal;
+            var primaryText = m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>();
+            primaryText.margin = Vector4.zero;
+            primaryText.fontStyle = FontStyles.Normal;
+            primaryText.textWrappingMode = TextWrappingModes.NoWrap;
+            primaryText.enableAutoSizing = true;
+            primaryText.fontSizeMin = 2f;
+            primaryText.fontSizeMax = 3f;
 
-            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat\nRequest", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
-            m_ManagerButtonS.transform.localPosition = new Vector3(72.50f, 38.50f - 3, 2.6f);
-            m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 0.6f, 0.8f);
-            m_ManagerButtonS.transform.SetAsFirstSibling();
+            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
+            m_ManagerButtonS.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
+            m_ManagerButtonS.transform.localScale    = new Vector3(0.65f, 0.45f, 0.65f);
+            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ManagerButtonS);
             m_ManagerButtonS.gameObject.SetActive(true);
-            m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>().fontStyle = FontStyles.Normal;
-            m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>().margin = new Vector4(0, 4, 0, 0);
+            var secondaryText = m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>();
+            secondaryText.margin = Vector4.zero;
+            secondaryText.fontStyle = FontStyles.Normal;
+            secondaryText.textWrappingMode = TextWrappingModes.NoWrap;
+            secondaryText.enableAutoSizing = true;
+            secondaryText.fontSizeMin = 2f;
+            secondaryText.fontSizeMax = 3f;
 
             UpdateButton();
 
@@ -315,11 +326,11 @@ namespace BeatSaberPlus_ChatRequest
             if (m_ManagerButtonP == null || m_ManagerButtonS == null)
                 return;
 
-            m_ManagerButtonP.transform.localPosition = new Vector3(72.50f, 41.50f - 3, 2.6f);
-            m_ManagerButtonP.transform.localScale = new Vector3(0.8f, 0.6f, 0.8f);
+            m_ManagerButtonP.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
+            m_ManagerButtonP.transform.localScale = new Vector3(0.65f, 0.45f, 0.65f);
 
-            m_ManagerButtonS.transform.localPosition = new Vector3(72.50f, 38.50f - 3, 2.6f);
-            m_ManagerButtonS.transform.localScale = new Vector3(0.8f, 0.6f, 0.8f);
+            m_ManagerButtonS.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
+            m_ManagerButtonS.transform.localScale = new Vector3(0.65f, 0.45f, 0.65f);
 
             m_ManagerButtonP.gameObject.SetActive(SongQueue.Count != 0);
             m_ManagerButtonS.gameObject.SetActive(SongQueue.Count == 0);
