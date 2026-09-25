@@ -285,24 +285,22 @@ namespace BeatSaberPlus_ChatRequest
 
             m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
             m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
-            m_ManagerButtonP.transform.localPosition = new Vector3(62f, 0f, 0f);
-            m_ManagerButtonP.transform.localScale    = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ManagerButtonP.transform.localPosition = new Vector3(31f, 0f, 0f);
+            m_ManagerButtonP.transform.localScale    = new Vector3(0.65f, 1.4f, 0.65f);
             m_ManagerButtonP.gameObject.SetActive(false);
             var primaryText = m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>();
             primaryText.margin = Vector4.zero;
-            primaryText.fontStyle = FontStyles.Normal;
             primaryText.textWrappingMode = TextWrappingModes.NoWrap;
             primaryText.enableAutoSizing = true;
             primaryText.fontSizeMin = 2f;
             primaryText.fontSizeMax = 3f;
 
             m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
-            m_ManagerButtonS.transform.localPosition = new Vector3(62f, 0f, 0f);
-            m_ManagerButtonS.transform.localScale    = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ManagerButtonS.transform.localPosition = new Vector3(31f, 0f, 0f);
+            m_ManagerButtonS.transform.localScale    = new Vector3(0.65f, 1.4f, 0.65f);
             m_ManagerButtonS.gameObject.SetActive(true);
             var secondaryText = m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>();
             secondaryText.margin = Vector4.zero;
-            secondaryText.fontStyle = FontStyles.Normal;
             secondaryText.textWrappingMode = TextWrappingModes.NoWrap;
             secondaryText.enableAutoSizing = true;
             secondaryText.fontSizeMin = 2f;
@@ -320,11 +318,11 @@ namespace BeatSaberPlus_ChatRequest
             if (m_ManagerButtonP == null || m_ManagerButtonS == null)
                 return;
 
-            m_ManagerButtonP.transform.localPosition = new Vector3(62f, 0f, 0f);
-            m_ManagerButtonP.transform.localScale = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ManagerButtonP.transform.localPosition = new Vector3(31f, 0f, 0f);
+            m_ManagerButtonP.transform.localScale = new Vector3(0.65f, 1.4f, 0.65f);
 
-            m_ManagerButtonS.transform.localPosition = new Vector3(62f, 0f, 0f);
-            m_ManagerButtonS.transform.localScale = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ManagerButtonS.transform.localPosition = new Vector3(31f, 0f, 0f);
+            m_ManagerButtonS.transform.localScale = new Vector3(0.65f, 1.4f, 0.65f);
 
             m_ManagerButtonP.gameObject.SetActive(SongQueue.Count != 0);
             m_ManagerButtonS.gameObject.SetActive(SongQueue.Count == 0);

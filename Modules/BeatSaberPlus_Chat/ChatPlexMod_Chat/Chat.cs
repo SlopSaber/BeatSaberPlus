@@ -302,12 +302,11 @@ namespace ChatPlexMod_Chat
 
             m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
             m_ModerationButton = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null);
-            m_ModerationButton.transform.localPosition      = new Vector3(36f, 0f, 0f);
-            m_ModerationButton.transform.localScale         = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ModerationButton.transform.localPosition      = new Vector3(16f, 0f, 0f);
+            m_ModerationButton.transform.localScale         = new Vector3(0.65f, 1.4f, 0.65f);
             m_ModerationButton.gameObject.SetActive(true);
             var moderationText = m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>();
             moderationText.margin = Vector4.zero;
-            moderationText.fontStyle = FontStyles.Normal;
             moderationText.textWrappingMode = TextWrappingModes.NoWrap;
             moderationText.enableAutoSizing = true;
             moderationText.fontSizeMin = 2f;
@@ -331,8 +330,8 @@ namespace ChatPlexMod_Chat
                 return;
 
 #if BEATSABER
-            m_ModerationButton.transform.localPosition  = new Vector3(36f, 0f, 0f);
-            m_ModerationButton.transform.localScale     = new Vector3(0.65f, 0.8f, 0.65f);
+            m_ModerationButton.transform.localPosition  = new Vector3(16f, 0f, 0f);
+            m_ModerationButton.transform.localScale     = new Vector3(0.65f, 1.4f, 0.65f);
 #elif UNITY_TESTING || SYNTHRIDERS || AUDIOTRIP || BOOMBOX || DANCEDASH
 #else
 #error Missing game implementation
