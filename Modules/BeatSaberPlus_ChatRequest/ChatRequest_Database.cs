@@ -34,7 +34,7 @@ namespace BeatSaberPlus_ChatRequest
                 string l_FilePath = m_DBFilePath;
                 if (!System.IO.File.Exists(l_FilePath))
                 {
-                    Logger.Instance.Error("File not found " + m_DBFilePath);
+                    SaveDatabase();
                     return;
                 }
 
@@ -162,10 +162,7 @@ namespace BeatSaberPlus_ChatRequest
         /// </summary>
         private void SaveDatabase()
         {
-            lock (SongQueue) { lock (SongHistory) {  lock (SongAllowlist) { lock (SongBlocklist) { lock (BannedUsers) { lock (Remaps) {
-                if (SongQueue.Count == 0 && SongHistory.Count == 0 && SongBlocklist.Count == 0)
-                    return;
-
+            lock (SongQueue) { lock (SongHistory) { lock (SongAllowlist) { lock (SongBlocklist) { lock (BannedUsers) { lock (Remaps) {
                 try
                 {
                     var l_Requests  = new JArray();
@@ -200,6 +197,7 @@ namespace BeatSaberPlus_ChatRequest
                     };
 
                     string l_ResultJSON = l_JSON.ToString();
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(m_DBFilePath));
                     System.IO.File.WriteAllText(m_DBFilePath, l_ResultJSON, Encoding.UTF8);
                 }
                 catch (System.Exception p_Exception)

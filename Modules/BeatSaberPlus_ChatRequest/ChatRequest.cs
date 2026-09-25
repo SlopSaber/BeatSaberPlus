@@ -303,19 +303,6 @@ namespace BeatSaberPlus_ChatRequest
             m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>().fontStyle = FontStyles.Normal;
             m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>().margin = new Vector4(0, 4, 0, 0);
 
-            var l_Images = m_ManagerButtonP.GetComponentsInChildren<HMUI.ImageView>();
-            foreach (var l_Image in l_Images)
-            {
-                l_Image._skew = 0f;
-                l_Image.SetAllDirty();
-            }
-            l_Images = m_ManagerButtonS.GetComponentsInChildren<HMUI.ImageView>();
-            foreach (var l_Image in l_Images)
-            {
-                l_Image._skew = 0f;
-                l_Image.SetAllDirty();
-            }
-
             UpdateButton();
 
             m_CreateButtonCoroutine = null;
