@@ -54,6 +54,7 @@ namespace ChatPlexMod_Chat
 
         private Coroutine   m_CreateButtonCoroutine = null;
         private Button      m_ModerationButton      = null;
+        private RectTransform m_TitleBarOverlay     = null;
 
         private CP_SDK.Misc.RingBuffer<(IChatService, IChatUser)>   m_LastChatUsers     = null;
 
@@ -163,11 +164,12 @@ namespace ChatPlexMod_Chat
             }
 
             /// Destroy moderation button
-            if (m_ModerationButton != null)
+            if (m_TitleBarOverlay != null)
             {
-                GameObject.Destroy(m_ModerationButton.gameObject);
-                m_ModerationButton = null;
+                GameObject.Destroy(m_TitleBarOverlay.gameObject);
+                m_TitleBarOverlay = null;
             }
+            m_ModerationButton = null;
 
             /// Destroy
             DestroyFloatingPanels();
@@ -212,11 +214,12 @@ namespace ChatPlexMod_Chat
                 }
 
                 /// Destroy moderation button
-                if (m_ModerationButton != null)
+                if (m_TitleBarOverlay != null)
                 {
-                    GameObject.Destroy(m_ModerationButton.gameObject);
-                    m_ModerationButton = null;
+                    GameObject.Destroy(m_TitleBarOverlay.gameObject);
+                    m_TitleBarOverlay = null;
                 }
+                m_ModerationButton = null;
 
                 /// Add button
                 if (m_CreateButtonCoroutine == null)
@@ -297,10 +300,10 @@ namespace ChatPlexMod_Chat
                 yield return l_Waiter;
             }
 
-            m_ModerationButton = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null);
+            m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
+            m_ModerationButton = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null);
             m_ModerationButton.transform.localPosition      = new Vector3(28f, 55f, 2.6f);
             m_ModerationButton.transform.localScale         = new Vector3(0.65f, 0.45f, 0.65f);
-            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ModerationButton);
             m_ModerationButton.gameObject.SetActive(true);
             var moderationText = m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>();
             moderationText.margin = Vector4.zero;

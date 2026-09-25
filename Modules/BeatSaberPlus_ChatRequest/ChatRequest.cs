@@ -39,6 +39,7 @@ namespace BeatSaberPlus_ChatRequest
         /// Manager button
         /// </summary>
         private Button m_ManagerButtonS = null;
+        private RectTransform m_TitleBarOverlay = null;
         /// <summary>
         /// Manager flow coordinator
         /// </summary>
@@ -128,16 +129,13 @@ namespace BeatSaberPlus_ChatRequest
             }
 
             /// Destroy manager button
-            if (m_ManagerButtonP != null)
+            if (m_TitleBarOverlay != null)
             {
-                GameObject.Destroy(m_ManagerButtonP.gameObject);
-                m_ManagerButtonP = null;
+                GameObject.Destroy(m_TitleBarOverlay.gameObject);
+                m_TitleBarOverlay = null;
             }
-            if (m_ManagerButtonS != null)
-            {
-                GameObject.Destroy(m_ManagerButtonS.gameObject);
-                m_ManagerButtonS = null;
-            }
+            m_ManagerButtonP = null;
+            m_ManagerButtonS = null;
 
             CP_SDK.UI.UISystem.DestroyUI(ref m_SettingsLeftView);
             CP_SDK.UI.UISystem.DestroyUI(ref m_SettingsMainView);
@@ -191,16 +189,13 @@ namespace BeatSaberPlus_ChatRequest
                 }
 
                 /// Destroy manager button
-                if (m_ManagerButtonP != null)
+                if (m_TitleBarOverlay != null)
                 {
-                    GameObject.Destroy(m_ManagerButtonP.gameObject);
-                    m_ManagerButtonP = null;
+                    GameObject.Destroy(m_TitleBarOverlay.gameObject);
+                    m_TitleBarOverlay = null;
                 }
-                if (m_ManagerButtonS != null)
-                {
-                    GameObject.Destroy(m_ManagerButtonS.gameObject);
-                    m_ManagerButtonS = null;
-                }
+                m_ManagerButtonP = null;
+                m_ManagerButtonS = null;
 
                 /// Add button
                 if (m_CreateButtonCoroutine == null)
@@ -288,10 +283,10 @@ namespace BeatSaberPlus_ChatRequest
                 yield return l_Waiter;
             }
 
-            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(l_LevelSelectionNavigationController.transform, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
+            m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
+            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
             m_ManagerButtonP.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
             m_ManagerButtonP.transform.localScale    = new Vector3(0.65f, 0.45f, 0.65f);
-            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ManagerButtonP);
             m_ManagerButtonP.gameObject.SetActive(false);
             var primaryText = m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>();
             primaryText.margin = Vector4.zero;
@@ -301,10 +296,9 @@ namespace BeatSaberPlus_ChatRequest
             primaryText.fontSizeMin = 2f;
             primaryText.fontSizeMax = 3f;
 
-            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(l_LevelSelectionNavigationController.transform, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
+            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null);
             m_ManagerButtonS.transform.localPosition = new Vector3(45.5f, 55f, 2.6f);
             m_ManagerButtonS.transform.localScale    = new Vector3(0.65f, 0.45f, 0.65f);
-            CP_SDK_BS.UI.Button.KeepAboveMenuTitleBar(m_ManagerButtonS);
             m_ManagerButtonS.gameObject.SetActive(true);
             var secondaryText = m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>();
             secondaryText.margin = Vector4.zero;
