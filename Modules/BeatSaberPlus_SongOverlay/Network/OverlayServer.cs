@@ -275,20 +275,20 @@ namespace BeatSaberPlus_SongOverlay.Network
 
                 if (l_WorkingMapInfo.level_id != l_Map.Data.beatmapLevel.levelID)
                 {
-                    try { l_CoverTask = l_Map.Data.beatmapLevel.previewMediaData.GetCoverSpriteAsync(); } catch { }
+                    try { l_CoverTask = l_Map.Data.beatmapLevel.previewMediaData?.GetCoverSpriteAsync(); } catch { }
 
                     l_WorkingMapInfo.level_id   = l_Map.Data.beatmapLevel.levelID;
                     l_WorkingMapInfo.name       = l_Map.Data.beatmapLevel.songName;
                     l_WorkingMapInfo.sub_name   = l_Map.Data.beatmapLevel.songSubName;
                     l_WorkingMapInfo.artist     = l_Map.Data.beatmapLevel.songAuthorName;
-                    l_WorkingMapInfo.mapper     = l_Map.Data.beatmapLevel.allMappers.FirstOrDefault();
+                    l_WorkingMapInfo.mapper     = l_Map.Data.beatmapLevel.allMappers?.FirstOrDefault() ?? "";
                     l_WorkingMapInfo.duration   = (uint)(l_Map.Data.beatmapLevel.songDuration * 1000f);
                     l_WorkingMapInfo.BPM        = l_Map.Data.beatmapLevel.beatsPerMinute;
                     l_WorkingMapInfo.PP         = 0f;
                     l_WorkingMapInfo.BSRKey     = "";
                 }
 
-                l_WorkingMapInfo.characteristic = l_Map.Data.beatmapKey.beatmapCharacteristic.serializedName.ToString();
+                l_WorkingMapInfo.characteristic = l_Map.Data.beatmapKey.characteristic.ToString();
                 l_WorkingMapInfo.difficulty     = l_Map.Data.beatmapKey.difficulty.ToString();
 
                 CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_WaitForGameplayReady(l_Map.Type, l_CoverTask));

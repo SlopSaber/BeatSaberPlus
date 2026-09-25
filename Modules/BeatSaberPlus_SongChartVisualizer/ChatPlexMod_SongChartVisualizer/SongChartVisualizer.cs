@@ -237,12 +237,12 @@ namespace ChatPlexMod_SongChartVisualizer
             }
 
             var l_TransformedBeatmapData    = CP_SDK_BS.Game.Logic.LevelData?.Data?.transformedBeatmapData;
-            var l_AudioClip                 = CP_SDK_BS.Game.Logic.LevelData?.Data?.songAudioClip;
-            var l_SongDuration              = l_AudioClip?.length ?? -1f;
+            var l_BeatmapLevel              = CP_SDK_BS.Game.Logic.LevelData?.Data?.beatmapLevel;
+            var l_SongDuration              = l_BeatmapLevel?.songDuration ?? -1f;
 
-            if (l_TransformedBeatmapData    == null
-                || l_AudioClip              == null
-                || l_SongDuration           == -1f)
+            if (l_TransformedBeatmapData == null
+                || l_BeatmapLevel        == null
+                || l_SongDuration        == -1f)
             {
                 yield break;
             }
