@@ -1,49 +1,16 @@
 
 .vs/
 packages/
-BeatSaberPlus/obj/
-BeatSaberPlus/bin/
 
-Modules/BeatSaberPlus_Chat/obj/
-Modules/BeatSaberPlus_Chat/bin/
-Modules/BeatSaberPlus_ChatEmoteRain/obj/
-Modules/BeatSaberPlus_ChatEmoteRain/bin/
-Modules/BeatSaberPlus_ChatIntegrations/obj/
-Modules/BeatSaberPlus_ChatIntegrations/bin/
-Modules/BeatSaberPlus_ChatRequest/obj/
-Modules/BeatSaberPlus_ChatRequest/bin/
-Modules/BeatSaberPlus_GameTweaker/obj/
-Modules/BeatSaberPlus_GameTweaker/bin/
-Modules/BeatSaberPlus_MenuMusic/obj/
-Modules/BeatSaberPlus_MenuMusic/bin/
-Modules/BeatSaberPlus_NoteTweaker/obj/
-Modules/BeatSaberPlus_NoteTweaker/bin/
-Modules/BeatSaberPlus_SongChartVisualizer/obj/
-Modules/BeatSaberPlus_SongChartVisualizer/bin/
-Modules/BeatSaberPlus_SongOverlay/obj/
-Modules/BeatSaberPlus_SongOverlay/bin/
+bin/
+obj/
 
-PrivateModules/BeatSaberPlusYoutube/obj/
-PrivateModules/BeatSaberPlusYoutube/bin/
-PrivateModules/BeatSaberPlus_ChatIntegrationsActions/obj/
-PrivateModules/BeatSaberPlus_ChatIntegrationsActions/bin/
+
 PrivateModules/BeatSaberPlus_ChatIntegrationsActions/UI/Crypted/
-PrivateModules/BeatSaberPlus_CustomEdition/obj/
-PrivateModules/BeatSaberPlus_CustomEdition/bin/
-PrivateModules/BeatSaberPlusYoutube/obj/
-PrivateModules/BeatSaberPlusYoutube/bin/
 PrivateModules/BeatSaberPlusYoutube/Resources/Crypted/CRYPTED_Endpoint.txt
-PrivateModules/BeatSaberPlus_Multiplayer/obj/
-PrivateModules/BeatSaberPlus_Multiplayer/bin/
 
-Plugins/BeatSaberPlus_VoiceAttack/obj/
-Plugins/BeatSaberPlus_VoiceAttack/bin/
 
-Samples/BeatSaberPlus_ModuleTemplate/obj/
-Samples/BeatSaberPlus_ModuleTemplate/bin/
 
-Test/bin/
-Test/obj/
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #
