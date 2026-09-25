@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- This file contains project properties used by the build. -->
 <Project>
 
@@ -7,8 +7,8 @@
         <PluginId>BeatSaberPlus_ModuleTemplate</PluginId>
         <PluginName>BeatSaberPlus_ModuleTemplate</PluginName>
         <Authors>HardCPP</Authors>
-        <Version>6.4.4</Version>
-        <GameVersion>1.42.0</GameVersion>
+        <Version>6.4.5</Version>
+        <GameVersion>1.45.1</GameVersion>
         <Description>.</Description>
         <!--<PluginIcon></PluginIcon>-->
         <!--<ProjectSource></ProjectSource>-->
@@ -29,6 +29,8 @@
     <PropertyGroup>
         <BSMTProjectType>BSIPA</BSMTProjectType>
         <GenerateManifest>true</GenerateManifest>
+        <DisableCopyToGame>true</DisableCopyToGame>
+        <DisableZipRelease>true</DisableZipRelease>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' != 'Release'">

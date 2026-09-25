@@ -59,8 +59,8 @@
         /// <param name="p_LevelData">Level data</param>
         private void Game_OnLevelStarted(CP_SDK_BS.Game.LevelData p_LevelData)
         {
-            var l_MapName       = p_LevelData?.Data?.beatmapLevel?.songName ?? "?";
-            var l_PlatformName  = p_LevelData?.Data?.targetEnvironmentInfo?.serializedName ?? "?";
+            var l_MapName = p_LevelData?.Data?.beatmapLevel?.songName ?? "?";
+            var l_PlatformName = p_LevelData?.Data?.targetEnvironmentInfo?.serializedName ?? "?";
 
             Logger.Instance.Warning($"Map {l_MapName} started on platform {l_PlatformName}");
         }
