@@ -253,7 +253,7 @@ namespace BeatSaberPlus_GameTweaker
 
             if (GTConfig.Instance.Environment.RemoveMusicBandLogo && p_LevelData?.Data?.targetEnvironmentInfo != null)
             {
-                switch (p_LevelData.Data.targetEnvironmentInfo.serializedName)
+                switch (p_LevelData.Data.targetEnvironmentInfo.environmentName)
                 {
                     case "BTSEnvironment":
                     case "LinkinParkEnvironment":

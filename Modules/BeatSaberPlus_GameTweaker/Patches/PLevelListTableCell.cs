@@ -9,9 +9,9 @@ namespace BeatSaberPlus_GameTweaker.Patches
     public class PLevelListTableCell
     {
         /// <summary>
-        /// DidActivate
+        /// Color song titles with local play history
         /// </summary>
-        internal static void Postfix(BeatmapLevel beatmapLevel, bool isFavorite,
+        internal static void Postfix(BeatmapLevel beatmapLevel,
                                      ref TextMeshProUGUI ____songNameText)
         {
             if (GTConfig.Instance.LevelSelection.HighlightEnabled)

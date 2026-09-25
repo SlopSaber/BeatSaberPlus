@@ -190,16 +190,16 @@ namespace BeatSaberPlus_GameTweaker.Managers
         /// <returns></returns>
         private static IEnumerator Coroutine_InitLate()
         {
-            yield return new WaitUntil(() => GameObject.FindObjectOfType<MenuLightsManager>());
-            m_MenuLightsManager = GameObject.FindObjectOfType<MenuLightsManager>();
+            yield return new WaitUntil(() => GameObject.FindFirstObjectByType<MenuLightsManager>());
+            m_MenuLightsManager = GameObject.FindFirstObjectByType<MenuLightsManager>();
 
             m_DefaultPreset         = m_MenuLightsManager._defaultPreset;
             m_DefaultPresetBackup   = m_DefaultPreset.lightIdColorPairs.Select(x => (x.intensity, x.baseColor)).ToArray();
 
             UpdateFromConfig();
 
-            yield return new WaitUntil(() => GameObject.FindObjectOfType<SoloFreePlayFlowCoordinator>());
-            var l_SoloFreePlayFlowCoordinator = GameObject.FindObjectOfType<SoloFreePlayFlowCoordinator>();
+            yield return new WaitUntil(() => GameObject.FindFirstObjectByType<SoloFreePlayFlowCoordinator>());
+            var l_SoloFreePlayFlowCoordinator = GameObject.FindFirstObjectByType<SoloFreePlayFlowCoordinator>();
 
             m_LevelClearedPreset    = l_SoloFreePlayFlowCoordinator._resultsClearedLightsPreset;
             m_LevelFailedPreset     = l_SoloFreePlayFlowCoordinator._resultsFailedLightsPreset;
