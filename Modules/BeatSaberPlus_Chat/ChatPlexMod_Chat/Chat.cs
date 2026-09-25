@@ -302,7 +302,7 @@ namespace ChatPlexMod_Chat
 
             m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
             m_ModerationButton = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null, 29f);
-            m_ModerationButton.transform.localPosition      = new Vector3(18f, 0f, 0f);
+            m_ModerationButton.transform.localPosition      = new Vector3(29f, 0f, 0f);
             m_ModerationButton.transform.localScale         = new Vector3(0.8f, 1.4f, 0.8f);
             m_ModerationButton.gameObject.SetActive(true);
             var moderationText = m_ModerationButton.GetComponentInChildren<TextMeshProUGUI>();
@@ -331,7 +331,7 @@ namespace ChatPlexMod_Chat
                 return;
 
 #if BEATSABER
-            m_ModerationButton.transform.localPosition  = new Vector3(18f, 0f, 0f);
+            m_ModerationButton.transform.localPosition  = new Vector3(29f, 0f, 0f);
             m_ModerationButton.transform.localScale     = new Vector3(0.8f, 1.4f, 0.8f);
 #elif UNITY_TESTING || SYNTHRIDERS || AUDIOTRIP || BOOMBOX || DANCEDASH
 #else

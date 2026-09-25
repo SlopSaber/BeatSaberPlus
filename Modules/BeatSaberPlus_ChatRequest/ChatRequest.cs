@@ -285,7 +285,7 @@ namespace BeatSaberPlus_ChatRequest
 
             m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
             m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
-            m_ManagerButtonP.transform.localPosition = new Vector3(42f, 0f, 0f);
+            m_ManagerButtonP.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonP.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
             m_ManagerButtonP.gameObject.SetActive(false);
             var primaryText = m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>();
@@ -297,7 +297,7 @@ namespace BeatSaberPlus_ChatRequest
             primaryText.fontSizeMax = 2.5f;
 
             m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
-            m_ManagerButtonS.transform.localPosition = new Vector3(42f, 0f, 0f);
+            m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
             m_ManagerButtonS.gameObject.SetActive(true);
             var secondaryText = m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>();
@@ -320,10 +320,10 @@ namespace BeatSaberPlus_ChatRequest
             if (m_ManagerButtonP == null || m_ManagerButtonS == null)
                 return;
 
-            m_ManagerButtonP.transform.localPosition = new Vector3(42f, 0f, 0f);
+            m_ManagerButtonP.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonP.transform.localScale = new Vector3(0.8f, 1.4f, 0.8f);
 
-            m_ManagerButtonS.transform.localPosition = new Vector3(42f, 0f, 0f);
+            m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonS.transform.localScale = new Vector3(0.8f, 1.4f, 0.8f);
 
             m_ManagerButtonP.gameObject.SetActive(SongQueue.Count != 0);
