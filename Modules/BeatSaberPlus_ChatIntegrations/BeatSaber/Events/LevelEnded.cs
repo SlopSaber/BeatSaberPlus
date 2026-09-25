@@ -97,15 +97,14 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Events
             Int64  l_HitCount   = l_LevelCompletionData.Results.goodCutsCount;
             Int64  l_MissCount  = l_NoteCount - l_HitCount;
             float  l_Accuracy   = (float)System.Math.Round(100.0f * CP_SDK_BS.Game.Levels.GetAccuracy(l_LevelCompletionData.MaxMultipliedScore, l_LevelCompletionData.Results.multipliedScore), 2);
-            string l_GameMode   = l_LevelCompletionData.Data.beatmapKey.beatmapCharacteristic.serializedName;
+            string l_GameMode   = l_LevelCompletionData.Data.beatmapKey.characteristic.SerializedName();
             string l_Difficulty = l_LevelCompletionData.Data.beatmapKey.difficulty.Name();
-            string l_SongName   = l_LevelCompletionData.Data.beatmapLevel.allMappers.FirstOrDefault() + " - " + l_LevelCompletionData.Data.beatmapLevel.songName;
 
             p_Context.AddValue(EValueType.Integer,  "NoteCount",  (Int64?)l_NoteCount);
             p_Context.AddValue(EValueType.Integer,  "HitCount",   (Int64?)l_HitCount);
             p_Context.AddValue(EValueType.Integer,  "MissCount",  (Int64?)l_MissCount);
             p_Context.AddValue(EValueType.Floating, "Accuracy",   (float?)l_Accuracy);
-            p_Context.AddValue(EValueType.String,   "SongName",   l_SongName);
+            p_Context.AddValue(EValueType.String,   "SongName", l_LevelCompletionData.Data.beatmapLevel.songAuthorName + " - " + l_LevelCompletionData.Data.beatmapLevel.songName);
             p_Context.AddValue(EValueType.String,   "Difficulty", l_GameMode + " - " + l_Difficulty);
         }
     }

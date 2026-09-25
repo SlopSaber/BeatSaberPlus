@@ -181,7 +181,7 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber
                 yield break;
 
             var l_PauseController   = null as PauseController;
-            yield return new WaitUntil(() => (l_PauseController = GameObject.FindObjectOfType<PauseController>()));
+            yield return new WaitUntil(() => (l_PauseController = GameObject.FindFirstObjectByType<PauseController>()));
 
             var l_Instance = CI.Instance;
             if (l_Instance == null || !l_Instance.IsEnabled)

@@ -464,7 +464,7 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Actions
             bool l_Failed = true;
             if (CP_SDK_BS.Game.Logic.ActiveScene == CP_SDK_BS.Game.Logic.ESceneType.Playing)
             {
-                var l_Level     = CP_SDK_BS.Game.Logic.LevelData?.Data?.beatmapKey.difficulty;
+            var l_Level     = CP_SDK_BS.Game.Logic.LevelData?.Data?.beatmapKey.difficulty;
                 var l_Effects   = l_Level == BeatmapDifficulty.ExpertPlus
                     ? CP_SDK_BS.Game.Logic.LevelData?.Data?.playerSpecificSettings?.environmentEffectsFilterExpertPlusPreset
                     : CP_SDK_BS.Game.Logic.LevelData?.Data?.playerSpecificSettings?.environmentEffectsFilterDefaultPreset;
@@ -834,7 +834,8 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Actions
         {
             /// todo
             return;
-            /*
+
+            #if false
             var l_Sabers            = Resources.FindObjectsOfTypeAll<SaberModelController>();
             var l_ColorManager      = null as ColorManager;
             var l_ColorSchemeBackup = null as ColorScheme;
@@ -886,7 +887,8 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Actions
 
                 if (!p_UseDefault && l_I == (l_Sabers.Length - 1))
                     l_ColorManager.SetProperty<ColorManager, ColorScheme>("_colorScheme", l_ColorSchemeBackup);
-            }*/
+            }
+            #endif
         }
     }
 
@@ -1354,9 +1356,9 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Actions
                             var l_Current = l_SpawnList[l_S];
                             l_BeatmapObjectSpawnController.HandleNoteDataCallback(NoteData.CreateBombNoteData(
                                 l_AudioTimeSyncController.songTime + l_Time,
-                                0.0f /* TODO */,
-                                0,
+                                0f,
                                 l_Current.Item1,
+                                0,
                                 (NoteLineLayer)l_Current.Item2
                                 )
                             );
@@ -1443,7 +1445,7 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Actions
                     for (int l_I = 0; l_I < Model.Count; ++l_I)
                     {
                         l_BeatmapObjectSpawnController.HandleObstacleDataCallback(new ObstacleData(
-                            l_AudioTimeSyncController.songTime + l_Time, 0.0f /* TODO */, 0.0f /* TODO */, 0, 4, NoteLineLayer.Top, 0.3f, -4, 3
+                            l_AudioTimeSyncController.songTime + l_Time, 0f, 4f, -4, 3, NoteLineLayer.Top, 0.3f, 0, 0
                         ));
                         l_Time += Model.Interval;
                     }
