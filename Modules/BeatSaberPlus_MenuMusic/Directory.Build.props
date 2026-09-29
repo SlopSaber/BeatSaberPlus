@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!-- This file contains project properties used by the build. -->
 <Project>
 
@@ -8,7 +8,7 @@
         <PluginName>BeatSaberPlus_MenuMusic</PluginName>
         <Authors>HardCPP</Authors>
         <Version>6.4.5</Version>
-        <GameVersion>1.45.1</GameVersion>
+        <GameVersion>1.45.2</GameVersion>
         <Description>.</Description>
         <!--<PluginIcon></PluginIcon>-->
         <!--<ProjectSource></ProjectSource>-->
@@ -37,7 +37,6 @@
 
     <ItemGroup>
         <OutputCopy Include="$(OutputPath)\$(TargetFileName)" OutputPath="Plugins\$(TargetFileName)" />
-        <OutputCopy Include="$(OutputPath)\$(TargetName).pdb" OutputPath="Plugins\$(TargetName).pdb" />
     </ItemGroup>
 
 </Project>
