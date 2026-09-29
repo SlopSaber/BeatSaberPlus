@@ -298,9 +298,6 @@ namespace BeatSaberPlus_ChatRequest
             m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
             m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
-            MatchButtonRect(m_ManagerButtonS.transform as RectTransform, m_ManagerButtonP.transform as RectTransform);
-            MatchButtonRect(m_ManagerButtonS.transform.Find("BG") as RectTransform, m_ManagerButtonP.transform.Find("BG") as RectTransform);
-            MatchButtonRect(m_ManagerButtonS.transform.Find("Content") as RectTransform, m_ManagerButtonP.transform.Find("Content") as RectTransform);
             var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect8");
             if (edgeSprite != null)
             {
@@ -317,6 +314,20 @@ namespace BeatSaberPlus_ChatRequest
             secondaryText.enableAutoSizing = true;
             secondaryText.fontSizeMin = 2f;
             secondaryText.fontSizeMax = 2.5f;
+
+            // BSML removes a prefab LayoutElement with deferred Destroy. Measure after
+            // that removal and the regular button's layout, then keep the blue state's
+            // ContentSizeFitter from replacing the matched height on activation.
+            yield return null;
+            var secondaryRect = (RectTransform)m_ManagerButtonS.transform;
+            var primaryRect = (RectTransform)m_ManagerButtonP.transform;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(secondaryRect);
+            var primaryLayout = m_ManagerButtonP.GetComponent<LayoutElement>();
+            primaryLayout.minHeight = secondaryRect.rect.height;
+            primaryLayout.preferredHeight = secondaryRect.rect.height;
+            MatchButtonRect(secondaryRect, primaryRect);
+            MatchButtonRect(m_ManagerButtonS.transform.Find("BG") as RectTransform, m_ManagerButtonP.transform.Find("BG") as RectTransform);
+            MatchButtonRect(m_ManagerButtonS.transform.Find("Content") as RectTransform, m_ManagerButtonP.transform.Find("Content") as RectTransform);
 
             UpdateButton();
 
