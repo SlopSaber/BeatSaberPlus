@@ -94,6 +94,18 @@
             <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
             <Private>False</Private>
         </Reference>
+        <Reference Include="UnityEngine.AudioModule">
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UnityWebRequestModule">
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.UnityWebRequestAudioModule">
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.UnityWebRequestAudioModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>

@@ -102,7 +102,7 @@ namespace BeatSaberPlus_ChatRequest.UI
                 .ForEachDirect<XUISlider>(x => x.OnValueChanged(_ => OnValueChanged())),
 
                 XUIVLayout.Make(
-                    XUIText.Make("Play preview music if downloaded"),
+                    XUIText.Make("Play song previews"),
                     XUIToggle.Make()
                         .SetValue(CRConfig.Instance.PlayPreviewMusic)
                         .Bind(ref m_GeneralTab_PlayPreviewMusic),

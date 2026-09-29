@@ -182,6 +182,7 @@ namespace BeatSaberPlus_ChatRequest.UI
         protected override sealed void OnViewDeactivation()
         {
             /// Stop preview music if any
+            Models.SongEntry.StopRemotePreview();
             m_SelectedSong?.StopPreviewMusic();
         }
 
@@ -358,6 +359,7 @@ namespace BeatSaberPlus_ChatRequest.UI
             m_SongInfoPanelNoSong.SetActive(true);
             ManagerRightView.Instance.SetVisible(false);
 
+            Models.SongEntry.StopRemotePreview();
             m_SelectedSong?.StopPreviewMusic();
             m_SelectedSong = null;
 
