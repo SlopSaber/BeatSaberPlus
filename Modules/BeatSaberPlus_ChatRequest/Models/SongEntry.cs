@@ -131,6 +131,13 @@ namespace BeatSaberPlus_ChatRequest.Models
         internal static void StopRemotePreview()
         {
             ++m_RemotePreviewSerial;
+            if (m_RemotePreviewSelection != null)
+            {
+                var l_Player = Resources.FindObjectsOfTypeAll<SongPreviewPlayer>().FirstOrDefault();
+                if (l_Player)
+                    l_Player.CrossfadeToDefault();
+            }
+
             m_RemotePreviewSelection = null;
         }
 
