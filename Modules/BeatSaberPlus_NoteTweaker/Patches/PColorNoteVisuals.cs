@@ -1,4 +1,4 @@
-﻿using CP_SDK.Unity.Extensions;
+using CP_SDK.Unity.Extensions;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
@@ -83,6 +83,8 @@ namespace BeatSaberPlus_NoteTweaker.Patches
                              ref MeshRenderer[] ____circleMeshRenderers,
                              ref MaterialPropertyBlockController[] ____materialPropertyBlockControllers)
         {
+            m_ColorManager = ____colorManager;
+
             // On the fly caching
             if (!_cache.TryGetValue(__instance, out var cached))
             {
@@ -229,7 +231,10 @@ namespace BeatSaberPlus_NoteTweaker.Patches
             SetDotColorsFromConfig(l_Profile);
 
             if (p_OnSceneSwitch)
+            {
                 _cache.Clear();
+                m_ColorManager = null;
+            }
         }
         public static void SetBlockColorOverride(bool p_Enabled, Color p_Left, Color p_Right)
         {
