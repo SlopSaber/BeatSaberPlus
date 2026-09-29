@@ -299,7 +299,7 @@ namespace BeatSaberPlus_ChatRequest
             m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
             m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
-            var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect4");
+            var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect8");
             if (edgeSprite != null)
             {
                 var primaryBackground = m_ManagerButtonP.transform.Find("BG")?.GetComponent<Image>();

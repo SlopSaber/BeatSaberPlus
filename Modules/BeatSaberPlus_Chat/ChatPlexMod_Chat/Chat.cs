@@ -304,7 +304,7 @@ namespace ChatPlexMod_Chat
             m_ModerationButton = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Moderation", () => UI.ModerationViewFlowCoordinator.Instance().Present(), null, 29f);
             m_ModerationButton.transform.localPosition      = new Vector3(29f, 0f, 0f);
             m_ModerationButton.transform.localScale         = new Vector3(0.8f, 1.4f, 0.8f);
-            var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect4");
+            var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect8");
             var moderationBackground = m_ModerationButton.transform.Find("BG")?.GetComponent<Image>();
             if (edgeSprite != null && moderationBackground != null) moderationBackground.sprite = edgeSprite;
             m_ModerationButton.gameObject.SetActive(true);
