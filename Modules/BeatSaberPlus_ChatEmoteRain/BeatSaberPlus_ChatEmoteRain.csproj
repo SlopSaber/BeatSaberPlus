@@ -1,6 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-    <Import Project="$(MSBuildProjectFile).user" Condition="Exists('$(MSBuildProjectFile).user')"/>
+    <PropertyGroup>
+        <GameDirectory Condition="'$(GameDirectory)' == ''">D:\BSManager\BSInstances\1.45.2</GameDirectory>
+    </PropertyGroup>
 
     <PropertyGroup>
         <ProjectGuid>{D529EDCC-39F3-47B7-8CD9-B740F8BC6495}</ProjectGuid>
@@ -13,7 +15,7 @@
         <AppOutputBase>$(MSBuildProjectDirectory)\</AppOutputBase>
 
         <EnableFrameworkPathOverride>true</EnableFrameworkPathOverride>
-        <FrameworkPathOverride>$(BeatSaberDir)\Beat Saber_Data\Managed</FrameworkPathOverride>
+        <FrameworkPathOverride>$(GameDirectory)\Beat Saber_Data\Managed</FrameworkPathOverride>
         <MarkPackageReferencesAsExternallyResolved>false</MarkPackageReferencesAsExternallyResolved>
     </PropertyGroup>
 
@@ -51,48 +53,48 @@
         <Reference Include="netstandard"/>
 
         <Reference Include="Newtonsoft.Json">
-            <HintPath>$(BeatSaberDir)\Libs\Newtonsoft.Json.dll</HintPath>
+            <HintPath>$(GameDirectory)\Libs\Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
             <SpecificVersion>False</SpecificVersion>
         </Reference>
         <Reference Include="System"/>
         <Reference Include="Main">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Main.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\Main.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="IPA.Loader">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\IPA.Loader.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\IPA.Loader.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="Unity.TextMeshPro">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\Unity.TextMeshPro.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.AssetBundleModule">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
             <Private>False</Private>
             <SpecificVersion>False</SpecificVersion>
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.ParticleSystemModule">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
             <Private>False</Private>
             <SpecificVersion>False</SpecificVersion>
         </Reference>
         <Reference Include="UnityEngine.TextRenderingModule">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
             <Private>False</Private>
             <SpecificVersion>False</SpecificVersion>
         </Reference>
         <Reference Include="UnityEngine.UI">
-            <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\UnityEngine.UI.dll</HintPath>
+            <HintPath>$(GameDirectory)\Beat Saber_Data\Managed\UnityEngine.UI.dll</HintPath>
             <Private>False</Private>
         </Reference>
     </ItemGroup>

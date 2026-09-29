@@ -1,4 +1,4 @@
-﻿using CP_SDK.Chat.Interfaces;
+using CP_SDK.Chat.Interfaces;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -36,8 +36,6 @@ namespace ChatPlexMod_ChatEmoteRain
 
         private bool m_ChatCoreAcquired = false;
 
-        private AssetBundle m_PreviewMateralAssetBundle = null;
-        private Material    m_PreviewMaterial           = null;
 
         private CP_SDK.Unity.Components.EnhancedImageParticleEmitterManager m_MenuManager       = null;
         private CP_SDK.Unity.Components.EnhancedImageParticleEmitterManager m_PlayingManager    = null;
