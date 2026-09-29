@@ -283,21 +283,21 @@ namespace BeatSaberPlus_ChatRequest
             }
 
             m_TitleBarOverlay = CP_SDK_BS.UI.Button.CreateMenuTitleBarOverlay(l_LevelSelectionNavigationController.transform);
-            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
+            m_ManagerButtonP = CP_SDK_BS.UI.Button.CreatePrimary(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f * 0.8f / 1.4f);
             m_ManagerButtonP.transform.localPosition = new Vector3(53f, 0f, 0f);
-            m_ManagerButtonP.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
+            m_ManagerButtonP.transform.localScale    = Vector3.one * 1.4f;
             m_ManagerButtonP.gameObject.SetActive(false);
             var primaryText = m_ManagerButtonP.GetComponentInChildren<TextMeshProUGUI>();
             primaryText.margin = Vector4.zero;
-            primaryText.rectTransform.localScale = new Vector3(1.75f, 1f, 1f);
+            primaryText.rectTransform.localScale = Vector3.one;
             primaryText.textWrappingMode = TextWrappingModes.NoWrap;
             primaryText.enableAutoSizing = true;
             primaryText.fontSizeMin = 2f;
             primaryText.fontSizeMax = 2.5f;
 
-            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
+            m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f * 0.8f / 1.4f);
             m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
-            m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
+            m_ManagerButtonS.transform.localScale    = Vector3.one * 1.4f;
             var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect8");
             if (edgeSprite != null)
             {
@@ -309,11 +309,20 @@ namespace BeatSaberPlus_ChatRequest
             m_ManagerButtonS.gameObject.SetActive(true);
             var secondaryText = m_ManagerButtonS.GetComponentInChildren<TextMeshProUGUI>();
             secondaryText.margin = Vector4.zero;
-            secondaryText.rectTransform.localScale = new Vector3(1.75f, 1f, 1f);
+            secondaryText.rectTransform.localScale = Vector3.one;
             secondaryText.textWrappingMode = TextWrappingModes.NoWrap;
             secondaryText.enableAutoSizing = true;
             secondaryText.fontSizeMin = 2f;
             secondaryText.fontSizeMax = 2.5f;
+
+            // Keep the title button's width while scaling its artwork uniformly.
+            // Text no longer needs inverse horizontal scaling; use narrower content
+            // padding to retain its space within the narrower unscaled rectangle.
+            foreach (var button in new[] { m_ManagerButtonP, m_ManagerButtonS })
+            {
+                var contentLayout = button.transform.Find("Content").GetComponent<LayoutGroup>();
+                contentLayout.padding = new RectOffset(2, 2, contentLayout.padding.top, contentLayout.padding.bottom);
+            }
 
             // BSML removes a prefab LayoutElement with deferred Destroy. Measure after
             // that removal and the regular button's layout, then keep the blue state's
@@ -355,10 +364,10 @@ namespace BeatSaberPlus_ChatRequest
                 return;
 
             m_ManagerButtonP.transform.localPosition = new Vector3(53f, 0f, 0f);
-            m_ManagerButtonP.transform.localScale = new Vector3(0.8f, 1.4f, 0.8f);
+            m_ManagerButtonP.transform.localScale = Vector3.one * 1.4f;
 
             m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
-            m_ManagerButtonS.transform.localScale = new Vector3(0.8f, 1.4f, 0.8f);
+            m_ManagerButtonS.transform.localScale = Vector3.one * 1.4f;
 
             m_ManagerButtonP.gameObject.SetActive(SongQueue.Count != 0);
             m_ManagerButtonS.gameObject.SetActive(SongQueue.Count == 0);
