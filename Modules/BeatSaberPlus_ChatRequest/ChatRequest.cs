@@ -299,6 +299,9 @@ namespace BeatSaberPlus_ChatRequest
             m_ManagerButtonS = CP_SDK_BS.UI.Button.Create(m_TitleBarOverlay, "Chat Request", () => UI.ManagerViewFlowCoordinator.Instance().Present(), null, 29f);
             m_ManagerButtonS.transform.localPosition = new Vector3(53f, 0f, 0f);
             m_ManagerButtonS.transform.localScale    = new Vector3(0.8f, 1.4f, 0.8f);
+            MatchButtonRect(m_ManagerButtonS.transform as RectTransform, m_ManagerButtonP.transform as RectTransform);
+            MatchButtonRect(m_ManagerButtonS.transform.Find("BG") as RectTransform, m_ManagerButtonP.transform.Find("BG") as RectTransform);
+            MatchButtonRect(m_ManagerButtonS.transform.Find("Content") as RectTransform, m_ManagerButtonP.transform.Find("Content") as RectTransform);
             var edgeSprite = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(sprite => sprite.name == "RoundRect8");
             if (edgeSprite != null)
             {
@@ -320,6 +323,19 @@ namespace BeatSaberPlus_ChatRequest
 
             m_CreateButtonCoroutine = null;
         }
+
+        private static void MatchButtonRect(RectTransform source, RectTransform target)
+        {
+            if (source == null || target == null)
+                return;
+
+            target.anchorMin = source.anchorMin;
+            target.anchorMax = source.anchorMax;
+            target.pivot = source.pivot;
+            target.sizeDelta = source.sizeDelta;
+            target.anchoredPosition = source.anchoredPosition;
+        }
+
         /// <summary>
         /// Update button text
         /// </summary>
