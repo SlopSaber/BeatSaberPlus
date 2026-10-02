@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,8 +11,8 @@ namespace ChatPlexMod_SongChartVisualizer.UI
     /// </summary>
     internal sealed class ChartFloatingPanelView : CP_SDK.UI.ViewController<ChartFloatingPanelView>
     {
-        private const float GraphAreaWidth  = 970f;
-        private const float GraphAreaHeight = 500f;
+        internal const float GraphAreaWidth  = 970f;
+        internal const float GraphAreaHeight = 500f;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -23,11 +24,22 @@ namespace ChatPlexMod_SongChartVisualizer.UI
         private List<TMPro.TextMeshProUGUI>     m_VLegendTexts      = new List<TMPro.TextMeshProUGUI>();
         private List<Image>                     m_VLegendLines      = new List<Image>();
         private List<Image>                     m_Lines             = new List<Image>(SongChartVisualizer.MaxPoints);
-        private List<Vector2>                   m_Points            = new List<Vector2>(SongChartVisualizer.MaxPoints);
+        private Vector2[]                       m_Points            = new Vector2[0];
         private Data.Graph                      m_Graph             = null;
         private Transform                       m_RotationTarget    = null;
         private Transform                       m_RotationFollow    = null;
         private Func<float>                     m_GetSongTime       = null;
+
+        internal int LegendCount => m_VLegendTexts.Count;
+
+        internal static NumberFormatInfo CaptureLegendNumberFormat()
+        {
+            var l_Culture = CultureInfo.CurrentCulture;
+            if (l_Culture.GetType() != typeof(CultureInfo))
+                return null;
+            var l_Format = l_Culture.NumberFormat;
+            return l_Format.IsReadOnly ? l_Format : null;
+        }
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -124,71 +136,53 @@ namespace ChatPlexMod_SongChartVisualizer.UI
         /// </summary>
         /// <param name="p_Graph">New graph</param>
         internal void SetGraph(Data.Graph p_Graph)
+            => SetPreparedGraph(p_Graph, Data.GraphBuilder.PrepareLayout(p_Graph, GraphAreaWidth, GraphAreaHeight, LegendCount, null));
+
+        internal bool SetPreparedGraph(Data.Graph p_Graph, Data.GraphBuilder.GraphLayout p_Layout, Func<bool> p_IsCurrent = null)
         {
-            var l_MinValue = p_Graph.MinY;
-            var l_MaxValue = p_Graph.MaxY + 2;
-
-            var l_YDelta = l_MaxValue - l_MinValue;
-            if (l_YDelta <= 0)
-                l_YDelta = 2.5f;
-
-            l_MinValue = Mathf.Max(0f, l_MinValue - (l_YDelta * 0.2f));
-            l_MaxValue = l_MaxValue + (l_YDelta * 0.1f);
+            if (!IsPublicationCurrent(p_IsCurrent))
+                return false;
 
             for (var l_I = 0; l_I < m_Lines.Count; ++l_I)
                 m_LinePool.Release(m_Lines[l_I]);
             m_Lines.Clear();
-
-            if (p_Graph.Points != null)
+            for (var l_I = 0; l_I < p_Layout.Segments.Length; ++l_I)
             {
-                m_Points.Clear();
-
-                var l_LastPoint  = default(Vector2);
-                var l_PointCount = p_Graph.Points.Length;
-                for (var l_I = 0; l_I < l_PointCount; ++l_I)
-                {
-                    var l_PointX        = (float)l_I * (GraphAreaWidth / l_PointCount);
-                    var l_PointY        = ((p_Graph.Points[l_I].Y - l_MinValue) / (l_MaxValue - l_MinValue)) * GraphAreaHeight;
-                    var l_CurrentPoint  = new Vector2(l_PointX, l_PointY);
-                    var l_Line          = m_LinePool.Get();
-                    var l_Direction     = (l_CurrentPoint - l_LastPoint).normalized;
-                    var l_Distance      = Vector2.Distance(l_LastPoint, l_CurrentPoint);
-
-                    l_Line.rectTransform.sizeDelta          = new Vector2(l_Distance, 2f);
-                    l_Line.rectTransform.anchoredPosition   = l_LastPoint + l_Direction * l_Distance * 0.5f;
-                    l_Line.rectTransform.localEulerAngles   = new Vector3(0, 0, Mathf.Atan2(l_Direction.y, l_Direction.x) * Mathf.Rad2Deg);
-
-                    m_Lines.Add(l_Line);
-                    m_Points.Add(l_CurrentPoint);
-
-                    l_LastPoint = l_CurrentPoint;
-                }
-
-                if (l_LastPoint != default)
-                {
-                    var l_Line          = m_LinePool.Get();
-                    var l_Direction     = (new Vector2(GraphAreaWidth, 0.0f) - l_LastPoint).normalized;
-                    var l_Distance      = Vector2.Distance(l_LastPoint, new Vector2(GraphAreaWidth, 0.0f));
-
-                    l_Line.rectTransform.sizeDelta          = new Vector2(l_Distance, 2f);
-                    l_Line.rectTransform.anchoredPosition   = l_LastPoint + l_Direction * l_Distance * 0.5f;
-                    l_Line.rectTransform.localEulerAngles   = new Vector3(0, 0, Mathf.Atan2(l_Direction.y, l_Direction.x) * Mathf.Rad2Deg);
-
-                    m_Lines.Add(l_Line);
-                    m_Points.Add(new Vector2(GraphAreaWidth, 0.0f));
-                }
+                if (!IsPublicationCurrent(p_IsCurrent))
+                    return false;
+                var l_Line = m_LinePool.Get();
+                m_Lines.Add(l_Line);
+                if (!IsPublicationCurrent(p_IsCurrent))
+                    return false;
+                var l_Segment = p_Layout.Segments[l_I];
+                l_Line.rectTransform.sizeDelta = l_Segment.Size;
+                l_Line.rectTransform.anchoredPosition = l_Segment.Position;
+                l_Line.rectTransform.localEulerAngles = new Vector3(0, 0, l_Segment.Angle);
             }
+            if (p_Layout.Points != null)
+                m_Points = p_Layout.Points;
 
-            var l_VLegendTextsCount = m_VLegendTexts.Count;
-            for (var l_I = 0; l_I < l_VLegendTextsCount; ++l_I)
+            for (var l_I = 0; l_I < m_VLegendTexts.Count; ++l_I)
             {
-                var l_NormalizedValue = (l_I * 1f / l_VLegendTextsCount);
-                m_VLegendTexts[l_I].text    = System.Math.Round(l_MinValue + (l_NormalizedValue * (l_MaxValue - l_MinValue))).ToString();
-                m_VLegendTexts[l_I].enabled = System.Math.Round(l_MinValue + (l_NormalizedValue * (l_MaxValue - l_MinValue)), 2) >= 0f;
+                if (!IsPublicationCurrent(p_IsCurrent))
+                    return false;
+                var l_Text = p_Layout.LegendTexts != null && ReferenceEquals(CaptureLegendNumberFormat(), p_Layout.NumberFormat)
+                    ? p_Layout.LegendTexts[l_I]
+                    : p_Layout.LegendValues[l_I].ToString();
+                if (!IsPublicationCurrent(p_IsCurrent))
+                    return false;
+                m_VLegendTexts[l_I].text = l_Text;
+                m_VLegendTexts[l_I].enabled = p_Layout.LegendEnabled[l_I];
             }
-
+            if (!IsPublicationCurrent(p_IsCurrent))
+                return false;
             m_Graph = p_Graph;
+            return true;
         }
+
+        private bool IsPublicationCurrent(Func<bool> p_IsCurrent)
+            => this && (p_IsCurrent == null || p_IsCurrent());
+
         /// <summary>
         /// Set rotation follow settings
         /// </summary>
