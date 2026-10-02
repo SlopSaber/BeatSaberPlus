@@ -56,6 +56,8 @@ namespace BeatSaberPlus_ChatRequest
         /// </summary>
         protected override void OnEnable()
         {
+            m_SimpleQueueWriter.BeginSession();
+
             /// Create directory
             try
             {
@@ -102,6 +104,8 @@ namespace BeatSaberPlus_ChatRequest
         /// </summary>
         protected override void OnDisable()
         {
+            m_SimpleQueueWriter.EndSession();
+
             /// Save database
             SaveDatabase();
 
