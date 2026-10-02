@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace BeatSaberPlus_GameTweaker
@@ -26,6 +28,8 @@ namespace BeatSaberPlus_GameTweaker
         private UI.SettingsLeftView m_SettingsLeftView = null;
 
         private Components.FPFCEscape m_FPFCEscape = null;
+
+        private readonly LogCleanupWorker m_LogCleanupWorker = new LogCleanupWorker();
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -192,8 +196,19 @@ namespace BeatSaberPlus_GameTweaker
             if (!p_ShouldClean)
                 return;
 
-            var l_DeleteCount = CleanLogsInFolder("Logs", p_EntriesToKeep);
-            Logger.Instance.Warning("[GameTweaker] CleanLogs, " + l_DeleteCount + " old logs entry deleted!");
+            try
+            {
+                var l_Culture = CultureInfo.CurrentCulture;
+                m_LogCleanupWorker.Enqueue(new LogCleanupRequest(Path.GetFullPath("Logs"), p_EntriesToKeep,
+                    StringComparer.Create(l_Culture, false),
+                    NumberFormatInfo.ReadOnly((NumberFormatInfo)l_Culture.NumberFormat.Clone())));
+            }
+            catch (Exception p_Exception)
+            {
+                Logger.Instance.Error("[GameTweaker] CleanLogsInFolder");
+                Logger.Instance.Error(p_Exception);
+                Logger.Instance.Warning("[GameTweaker] CleanLogs, 0 old logs entry deleted!");
+            }
         }
         /// <summary>
         /// Clean logs in folder
@@ -201,7 +216,7 @@ namespace BeatSaberPlus_GameTweaker
         /// <param name="p_Directory">Directory to clean</param>
         /// <param name="p_EntriesToKeep">Number of old entry to keep</param>
         /// <returns>Deleted log count</returns>
-        private int CleanLogsInFolder(string p_Directory, int p_EntriesToKeep)
+        private static int CleanLogsInFolder(string p_Directory, int p_EntriesToKeep, StringComparer p_Comparer)
         {
             int l_Deleted = 0;
             List<string> l_Files = new List<String>();
@@ -209,7 +224,7 @@ namespace BeatSaberPlus_GameTweaker
             try
             {
                 l_Files.AddRange(Directory.GetFiles(p_Directory, "*.log.gz", SearchOption.TopDirectoryOnly)) ;
-                l_Files.Sort();
+                l_Files.Sort(p_Comparer);
                 l_Files.Reverse();
 
                 if (l_Files.Count > p_EntriesToKeep)
@@ -219,7 +234,7 @@ namespace BeatSaberPlus_GameTweaker
                 }
 
                 foreach (string l_Directory in Directory.GetDirectories(p_Directory))
-                    l_Deleted += CleanLogsInFolder(l_Directory, p_EntriesToKeep);
+                    l_Deleted += CleanLogsInFolder(l_Directory, p_EntriesToKeep, p_Comparer);
             }
             catch (Exception p_Exception)
             {
@@ -228,6 +243,93 @@ namespace BeatSaberPlus_GameTweaker
             }
 
             return l_Deleted;
+        }
+
+        private sealed class LogCleanupRequest
+        {
+            internal readonly string DirectoryPath;
+            internal readonly int EntriesToKeep;
+            internal readonly StringComparer Comparer;
+            internal readonly NumberFormatInfo NumberFormat;
+
+            internal LogCleanupRequest(string p_DirectoryPath, int p_EntriesToKeep, StringComparer p_Comparer,
+                NumberFormatInfo p_NumberFormat)
+            {
+                DirectoryPath = p_DirectoryPath;
+                EntriesToKeep = p_EntriesToKeep;
+                Comparer = p_Comparer;
+                NumberFormat = p_NumberFormat;
+            }
+        }
+
+        private sealed class LogCleanupWorker
+        {
+            private readonly object m_Gate = new object();
+            private readonly Queue<LogCleanupRequest> m_Requests = new Queue<LogCleanupRequest>();
+            private Task m_Worker;
+
+            internal void Enqueue(LogCleanupRequest p_Request)
+            {
+                lock (m_Gate)
+                {
+                    m_Requests.Enqueue(p_Request);
+                    StartPending();
+                }
+            }
+
+            private void StartPending()
+            {
+                if (m_Worker != null || m_Requests.Count == 0)
+                    return;
+
+                m_Worker = StartWorker(this);
+                m_Worker.ContinueWith(OnWorkerCompleted, TaskScheduler.Default);
+            }
+
+            private static Task StartWorker(LogCleanupWorker p_Worker)
+                => Task.Run(p_Worker.Process);
+
+            private void Process()
+            {
+                while (true)
+                {
+                    LogCleanupRequest l_Request;
+                    lock (m_Gate)
+                    {
+                        if (m_Requests.Count == 0)
+                            return;
+                        l_Request = m_Requests.Dequeue();
+                    }
+
+                    int l_DeleteCount = CleanLogsInFolder(l_Request.DirectoryPath, l_Request.EntriesToKeep, l_Request.Comparer);
+                    Logger.Instance.Warning("[GameTweaker] CleanLogs, " + l_DeleteCount.ToString(l_Request.NumberFormat)
+                        + " old logs entry deleted!");
+                }
+            }
+
+            private void OnWorkerCompleted(Task p_Worker)
+            {
+                try
+                {
+                    if (p_Worker.IsFaulted)
+                    {
+                        Logger.Instance.Error("[GameTweaker] CleanLogsInFolder");
+                        Logger.Instance.Error(p_Worker.Exception);
+                    }
+                }
+                finally
+                {
+                    lock (m_Gate)
+                    {
+                        // Keep the slot until physical completion, including across module disable/re-enable.
+                        if (m_Worker == p_Worker)
+                        {
+                            m_Worker = null;
+                            StartPending();
+                        }
+                    }
+                }
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////////
