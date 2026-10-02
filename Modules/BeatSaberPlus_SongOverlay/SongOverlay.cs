@@ -22,6 +22,8 @@ namespace BeatSaberPlus_SongOverlay
 
         private UI.SettingsLeftView m_SettingsLeftView = null;
         private UI.SettingsMainView m_SettingsMainView = null;
+        private bool m_Active;
+        private long m_Lifetime;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -31,19 +33,22 @@ namespace BeatSaberPlus_SongOverlay
         /// </summary>
         protected override void OnEnable()
         {
+            m_Active = true;
+            var l_Lifetime = ++m_Lifetime;
             Network.OverlayServer.Start();
 
-            CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_CheckCompatibility());
+            CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_CheckCompatibility(this, l_Lifetime));
         }
         /// <summary>
         /// Enable the Module
         /// </summary>
         protected override void OnDisable()
         {
+            m_Active = false;
+            ++m_Lifetime;
+            Network.OverlayServer.Stop();
             CP_SDK.UI.UISystem.DestroyUI(ref m_SettingsLeftView);
             CP_SDK.UI.UISystem.DestroyUI(ref m_SettingsMainView);
-
-            Network.OverlayServer.Stop();
         }
 
         ////////////////////////////////////////////////////////////////////////////
@@ -67,9 +72,11 @@ namespace BeatSaberPlus_SongOverlay
         /// Check compatibility coroutine
         /// </summary>
         /// <returns></returns>
-        private static IEnumerator Coroutine_CheckCompatibility()
+        private static IEnumerator Coroutine_CheckCompatibility(SongOverlay p_Module, long p_Lifetime)
         {
             yield return new WaitForSeconds(10f);
+            if (!p_Module.m_Active || p_Module.m_Lifetime != p_Lifetime)
+                yield break;
 
             var l_OverlaysMods = new List<string>()
             {

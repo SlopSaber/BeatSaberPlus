@@ -1,7 +1,4 @@
-﻿using CP_SDK_WebSocketSharp.Server;
 using IPA.Utilities;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,32 +15,29 @@ namespace BeatSaberPlus_SongOverlay.Network
     /// </summary>
     class OverlayServer
     {
-        private const int SERVER_PORT = 2947;
-        private const int PROTOCOL_VERSION = 1;
+        private static OverlayTransport m_Transport;
+        private static Task m_TransportTask;
+        private static long m_ServerGeneration;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
 
-        private static HttpServer m_HttpServer;
-        private static bool m_ThreadRunning = true;
-        private static bool m_HavingClients = false;
-        private static List<OverlaySession> m_Clients = new List<OverlaySession>();
-
-        ////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////
-
-        private static string m_Handshake = "{}";
         private static Models.Event m_GameStateEvent    = new Models.Event() { gameStateChanged = "None" };
         private static Models.Event m_MapInfoEvent      = new Models.Event() { mapInfoChanged = new Models.MapInfo() };
         private static Models.Event m_PauseEvent        = new Models.Event() { pauseTime = 0 };
         private static Models.Event m_ResumeEvent       = new Models.Event() { resumeTime = 0 };
         private static Models.Event m_ScoreEvent        = new Models.Event() { scoreEvent = new Models.Score() };
 
-        private static bool m_MapInfoEventQueued;
-        private static bool m_GameStateEventQueued;
-        private static bool m_PauseEventQueued;
-        private static bool m_ResumeEventQueued;
-        private static bool m_ScoreEventQueued;
+        private static long m_MapInfoRevision;
+        private static long m_MapInfoPublishedRevision;
+        private static long m_GameStateRevision;
+        private static long m_GameStatePublishedRevision;
+        private static long m_PauseRevision;
+        private static long m_PausePublishedRevision;
+        private static long m_ResumeRevision;
+        private static long m_ResumePublishedRevision;
+        private static long m_ScoreRevision;
+        private static long m_ScorePublishedRevision;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -76,6 +70,87 @@ namespace BeatSaberPlus_SongOverlay.Network
         private static bool m_CoverEnabled;
         private static long m_GameplayGeneration;
         private static bool m_CoverReady = true;
+        private static GameplaySubscriptions m_GameplaySubscriptions;
+
+        private sealed class GameplaySubscriptions
+        {
+            private readonly long m_Generation;
+            private readonly object m_LevelData;
+            private readonly ComboController m_Combo;
+            private readonly ScoreController m_Score;
+            private readonly GameEnergyCounter m_Energy;
+            private readonly PauseController m_Pause;
+            private readonly BeatmapObjectManager m_Beatmap;
+
+            internal GameplaySubscriptions(long p_Generation, object p_LevelData)
+            {
+                m_Generation = p_Generation;
+                m_LevelData = p_LevelData;
+                m_Combo = m_ComboController;
+                m_Score = m_ScoreController;
+                m_Energy = m_GameEnergyCounter;
+                m_Pause = m_PauseController;
+                m_Beatmap = m_Score._beatmapObjectManager;
+            }
+
+            private bool IsCurrent => ReferenceEquals(m_GameplaySubscriptions, this) && IsCurrentGameplay(m_Generation, m_LevelData);
+
+            internal void Bind()
+            {
+                m_Combo.comboDidChangeEvent += OnCombo;
+                m_Score.scoreDidChangeEvent += OnScore;
+                m_Energy.gameEnergyDidChangeEvent += OnEnergy;
+                if (m_Beatmap != null)
+                {
+                    m_Beatmap.noteWasCutEvent += OnNoteCut;
+                    m_Beatmap.noteWasMissedEvent += OnNoteMissed;
+                }
+                if (m_Pause)
+                {
+                    m_Pause.didPauseEvent += OnPause;
+                    m_Pause.didResumeEvent += OnResume;
+                }
+            }
+
+            internal void Unbind()
+            {
+                if (m_Combo) m_Combo.comboDidChangeEvent -= OnCombo;
+                if (m_Score) m_Score.scoreDidChangeEvent -= OnScore;
+                if (m_Energy) m_Energy.gameEnergyDidChangeEvent -= OnEnergy;
+                if (m_Beatmap != null)
+                {
+                    m_Beatmap.noteWasCutEvent -= OnNoteCut;
+                    m_Beatmap.noteWasMissedEvent -= OnNoteMissed;
+                }
+                if (m_Pause)
+                {
+                    m_Pause.didPauseEvent -= OnPause;
+                    m_Pause.didResumeEvent -= OnResume;
+                }
+            }
+
+            private void OnCombo(int p_Combo) { if (IsCurrent) ComboController_comboDidChangeEvent(p_Combo); }
+            private void OnScore(int p_RawScore, int p_Score) { if (IsCurrent) ScoreController_scoreDidChangeEvent(p_RawScore, p_Score); }
+            private void OnEnergy(float p_Health) { if (IsCurrent) GameEnergyCounter_gameEnergyDidChangeEvent(p_Health); }
+            private void OnNoteCut(NoteController p_Note, in NoteCutInfo p_Info) { if (IsCurrent) ScoreController_noteWasCutEvent(p_Note, in p_Info); }
+            private void OnNoteMissed(NoteController p_Note) { if (IsCurrent) ScoreController_noteWasMissedEvent(p_Note); }
+
+            private void OnPause()
+            {
+                if (!IsCurrent) return;
+                m_IsPaused = true;
+                m_PauseEvent.pauseTime = m_AudioTimeSyncController.songTime;
+                ++m_PauseRevision;
+            }
+
+            private void OnResume()
+            {
+                if (!IsCurrent) return;
+                m_IsPaused = false;
+                m_ResumeEvent.resumeTime = m_AudioTimeSyncController.songTime;
+                ++m_ResumeRevision;
+            }
+        }
 
         private sealed class CoverRequest
         {
@@ -179,194 +254,224 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// </summary>
         internal static void Start()
         {
+            if (m_CoverEnabled)
+                return;
             m_CoverEnabled = true;
+            var l_Generation = ++m_ServerGeneration;
             ++m_GameplayGeneration;
             CoverEncoder.DiscardPending();
-
-            /// Bind events
-            CP_SDK_BS.Game.Logic.OnSceneChange += Logic_OnSceneChange;
-            Application.quitting += Stop;
-
-            /// Prepare events
             m_GameStateEvent.FeedEvent();
             m_MapInfoEvent.FeedEvent();
             m_PauseEvent.FeedEvent();
             m_ResumeEvent.FeedEvent();
             m_ScoreEvent.FeedEvent();
-
-            m_ThreadRunning = true;
-
-            /// Start web socket server
-            new Thread(() =>
-            {
-                var l_WaitCount = 0;
-                while (string.IsNullOrEmpty(CP_SDK_BS.Game.UserPlatform.GetUserID()) && l_WaitCount < 20)
-                {
-                    Thread.Sleep(1000);
-                    l_WaitCount++;
-                }
-
-                var l_Handshake = new JObject()
-                {
-                    ["_type"]               = "handshake",
-                    ["protocolVersion"]     = PROTOCOL_VERSION,
-                    ["gameVersion"]         = Application.version,
-                    ["playerName"]          = CP_SDK_BS.Game.UserPlatform.GetUserName(),
-                    ["playerPlatformId"]    = CP_SDK_BS.Game.UserPlatform.GetUserID(),
-                };
-
-#if DEBUG
-                m_Handshake = JsonConvert.SerializeObject(l_Handshake, Formatting.Indented);
-#else
-                m_Handshake = JsonConvert.SerializeObject(l_Handshake);
-#endif
-
-                InitServer();
-
-                while (m_ThreadRunning)
-                {
-                    if (m_HavingClients)
-                    {
-                        lock (m_Clients)
-                        {
-                            if (m_MapInfoEventQueued)
-                            {
-                                var l_SerializedData = JsonConvert.SerializeObject(m_MapInfoEvent);
-                                m_MapInfoEventQueued = false;
-
-                                for (int l_I = 0; l_I < m_Clients.Count; ++l_I)
-                                    m_Clients[l_I].SendData(l_SerializedData);
-                            }
-
-                            if (m_GameStateEventQueued)
-                            {
-                                var l_SerializedData = JsonConvert.SerializeObject(m_GameStateEvent);
-                                m_GameStateEventQueued = false;
-
-                                for (int l_I = 0; l_I < m_Clients.Count; ++l_I)
-                                    m_Clients[l_I].SendData(l_SerializedData);
-                            }
-
-                            if (m_ResumeEventQueued)
-                            {
-                                var l_SerializedData = JsonConvert.SerializeObject(m_ResumeEvent);
-                                m_ResumeEventQueued = false;
-
-                                for (int l_I = 0; l_I < m_Clients.Count; ++l_I)
-                                    m_Clients[l_I].SendData(l_SerializedData);
-                            }
-
-                            if (m_PauseEventQueued)
-                            {
-                                var l_SerializedData = JsonConvert.SerializeObject(m_PauseEvent);
-                                m_PauseEventQueued = false;
-
-                                for (int l_I = 0; l_I < m_Clients.Count; ++l_I)
-                                    m_Clients[l_I].SendData(l_SerializedData);
-                            }
-
-                            if (m_ScoreEventQueued)
-                            {
-                                var l_SerializedData = JsonConvert.SerializeObject(m_ScoreEvent);
-                                m_ScoreEventQueued = false;
-
-                                for (int l_I = 0; l_I < m_Clients.Count; ++l_I)
-                                    m_Clients[l_I].SendData(l_SerializedData);
-                            }
-                        }
-                    }
-
-                    Thread.Sleep(TimeSpan.FromMilliseconds(33));
-                }
-
-                StopServer();
-            }).Start();
+            CP_SDK_BS.Game.Logic.OnSceneChange += Logic_OnSceneChange;
+            Application.quitting += Stop;
+            CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_StartServer(l_Generation));
+            Logic_OnSceneChange(CP_SDK_BS.Game.Logic.ActiveScene);
         }
-        /// <summary>
-        /// On application quitting
-        /// </summary>
+
         internal static void Stop()
         {
             m_CoverEnabled = false;
+            ++m_ServerGeneration;
             ++m_GameplayGeneration;
             CoverEncoder.DiscardPending();
-
-            /// Unbing events
             Application.quitting -= Stop;
             CP_SDK_BS.Game.Logic.OnSceneChange -= Logic_OnSceneChange;
-
-            m_ThreadRunning = false;
+            m_Transport?.Stop();
+            m_Transport = null;
+            ReleaseGameplay();
         }
 
-        ////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////
-
-        /// <summary>
-        /// On client connected
-        /// </summary>
-        /// <param name="p_Client">Client session</param>
-        internal static void OnClientConnected(OverlaySession p_Client)
+        private static bool IsCurrentServer(long p_Generation)
         {
-            lock (m_Clients)
-            {
-                if (!m_Clients.Contains(p_Client))
-                    m_Clients.Add(p_Client);
+            return m_CoverEnabled && m_ServerGeneration == p_Generation;
+        }
 
-                m_HavingClients = true;
+        private static IEnumerator Coroutine_StartServer(long p_Generation)
+        {
+            if (!IsCurrentServer(p_Generation))
+                yield break;
+            var l_WaitCount = 0;
+            var l_UserID = CP_SDK_BS.Game.UserPlatform.GetUserID();
+            var l_PlatformDelay = new WaitForSecondsRealtime(1f);
+            while (string.IsNullOrEmpty(l_UserID) && l_WaitCount < 20)
+            {
+                yield return l_PlatformDelay;
+                if (!IsCurrentServer(p_Generation))
+                    yield break;
+                l_UserID = CP_SDK_BS.Game.UserPlatform.GetUserID();
+                ++l_WaitCount;
             }
 
+            // A replacement cannot bind until the previous worker has finished server shutdown.
+            while (m_TransportTask != null && !m_TransportTask.IsCompleted)
+            {
+                if (!IsCurrentServer(p_Generation))
+                    yield break;
+                yield return null;
+            }
+            if (!IsCurrentServer(p_Generation))
+                yield break;
+            if (m_TransportTask != null && m_TransportTask.IsFaulted)
+                _ = m_TransportTask.Exception;
+
+            OverlayTransport l_Transport = null;
+            Task l_Task = null;
             try
             {
-                p_Client.SendData(m_Handshake);
-
-                if (CP_SDK_BS.Game.Logic.ActiveScene == CP_SDK_BS.Game.Logic.ESceneType.Playing)
+#if DEBUG
+                const bool l_Indented = true;
+#else
+                const bool l_Indented = false;
+#endif
+                var l_Startup = new OverlayTransport.Startup(Application.version, CP_SDK_BS.Game.UserPlatform.GetUserName(), l_UserID, l_Indented);
+                if (IsCurrentServer(p_Generation))
                 {
-                    p_Client.SendData(JsonConvert.SerializeObject(m_MapInfoEvent));
-                    p_Client.SendData(JsonConvert.SerializeObject(m_ScoreEvent));
-                    p_Client.SendData(JsonConvert.SerializeObject(m_GameStateEvent));
+                    l_Transport = new OverlayTransport(l_Startup);
+                    m_Transport = l_Transport;
+                    l_Task = Task.Run(l_Transport.Run);
+                    m_TransportTask = l_Task;
+                    l_Task.ContinueWith(OverlayTransport.ObserveFault, System.Threading.CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                }
+            }
+            catch (Exception l_Exception)
+            {
+                l_Transport?.Stop();
+                if (ReferenceEquals(m_Transport, l_Transport))
+                    m_Transport = null;
+                Logger.Instance.Error(l_Exception);
+            }
+            if (l_Task == null)
+                yield break;
+            m_TransportTask = l_Task;
 
-                    if (m_PauseController)
+            var l_PumpDelay = new WaitForSecondsRealtime(0.033f);
+            while (IsCurrentServer(p_Generation) && ReferenceEquals(m_Transport, l_Transport) && !l_Task.IsCompleted)
+            {
+                try { Pump(p_Generation, l_Transport); }
+                catch (Exception l_Exception) { Logger.Instance.Error(l_Exception); }
+                yield return l_PumpDelay;
+            }
+            if (ReferenceEquals(m_Transport, l_Transport))
+                m_Transport = null;
+        }
+
+        private static void Pump(long p_Generation, OverlayTransport p_Transport)
+        {
+            if (p_Transport.NeedsInitialSnapshot)
+            {
+                var l_Initial = CaptureInitial();
+                if (!IsCurrentServer(p_Generation) || !ReferenceEquals(m_Transport, p_Transport))
+                    return;
+                p_Transport.InitializePending(l_Initial);
+            }
+            if (!p_Transport.HasClients)
+                return;
+            if (m_MapInfoRevision == m_MapInfoPublishedRevision && m_GameStateRevision == m_GameStatePublishedRevision
+                && m_ResumeRevision == m_ResumePublishedRevision && m_PauseRevision == m_PausePublishedRevision
+                && m_ScoreRevision == m_ScorePublishedRevision)
+                return;
+
+            var l_Revisions = new[] { m_MapInfoRevision, m_GameStateRevision, m_ResumeRevision, m_PauseRevision, m_ScoreRevision };
+            var l_Published = new[] { m_MapInfoPublishedRevision, m_GameStatePublishedRevision, m_ResumePublishedRevision, m_PausePublishedRevision, m_ScorePublishedRevision };
+            var l_Events = new[] { m_MapInfoEvent, m_GameStateEvent, m_ResumeEvent, m_PauseEvent, m_ScoreEvent };
+            var l_Updates = new OverlayTransport.Payload[5];
+            var l_HasUpdates = false;
+            for (int l_I = 0; l_I < l_Updates.Length; ++l_I)
+            {
+                if (l_Revisions[l_I] == l_Published[l_I])
+                    continue;
+                l_Updates[l_I] = new OverlayTransport.Payload(CloneEvent(l_Events[l_I]));
+                l_HasUpdates = true;
+            }
+            if (!l_HasUpdates || !IsCurrentServer(p_Generation) || !ReferenceEquals(m_Transport, p_Transport) || !p_Transport.PublishUpdates(l_Updates))
+                return;
+
+            // Reentrant custom serialization can create later revisions; only acknowledge the captured ones.
+            if (l_Updates[0] != null) m_MapInfoPublishedRevision = l_Revisions[0];
+            if (l_Updates[1] != null) m_GameStatePublishedRevision = l_Revisions[1];
+            if (l_Updates[2] != null) m_ResumePublishedRevision = l_Revisions[2];
+            if (l_Updates[3] != null) m_PausePublishedRevision = l_Revisions[3];
+            if (l_Updates[4] != null) m_ScorePublishedRevision = l_Revisions[4];
+        }
+
+        private static OverlayTransport.Payload[] CaptureInitial()
+        {
+            var l_Events = new List<Models.Event>();
+            if (CP_SDK_BS.Game.Logic.ActiveScene == CP_SDK_BS.Game.Logic.ESceneType.Playing)
+            {
+                l_Events.Add(CloneEvent(m_MapInfoEvent));
+                l_Events.Add(CloneEvent(m_ScoreEvent));
+                l_Events.Add(CloneEvent(m_GameStateEvent));
+                if (m_PauseController && m_AudioTimeSyncController)
+                {
+                    if (m_IsPaused)
                     {
-                        if (m_IsPaused)
-                        {
-                            m_PauseEvent.pauseTime = m_AudioTimeSyncController.songTime;
-                            p_Client.SendData(JsonConvert.SerializeObject(m_PauseEvent));
-                        }
-                        else
-                        {
-                            m_ResumeEvent.resumeTime = m_AudioTimeSyncController.songTime;
-                            p_Client.SendData(JsonConvert.SerializeObject(m_ResumeEvent));
-                        }
+                        m_PauseEvent.pauseTime = m_AudioTimeSyncController.songTime;
+                        l_Events.Add(CloneEvent(m_PauseEvent));
+                    }
+                    else
+                    {
+                        m_ResumeEvent.resumeTime = m_AudioTimeSyncController.songTime;
+                        l_Events.Add(CloneEvent(m_ResumeEvent));
                     }
                 }
-                else
-                    p_Client.SendData(JsonConvert.SerializeObject(m_GameStateEvent));
             }
-            catch (System.Exception p_Exception)
-            {
-                Logger.Instance.Error(p_Exception);
-            }
+            else
+                l_Events.Add(CloneEvent(m_GameStateEvent));
+            var l_Result = new OverlayTransport.Payload[l_Events.Count];
+            for (int l_I = 0; l_I < l_Result.Length; ++l_I)
+                l_Result[l_I] = new OverlayTransport.Payload(l_Events[l_I]);
+            return l_Result;
         }
-        /// <summary>
-        /// On client disconnected
-        /// </summary>
-        /// <param name="p_Client">Client session</param>
-        internal static void OnClientDisconnected(OverlaySession p_Client)
+
+        private static Models.Event CloneEvent(Models.Event p_Event)
         {
-            lock (m_Clients)
+            var l_Result = new Models.Event()
             {
-                m_Clients.Remove(p_Client);
-                m_HavingClients = m_Clients.Count > 0;
+                gameStateChanged = p_Event.gameStateChanged,
+                pauseTime = p_Event.pauseTime,
+                resumeTime = p_Event.resumeTime,
+            };
+            if (p_Event.mapInfoChanged != null)
+            {
+                var l_Map = p_Event.mapInfoChanged;
+                l_Result.mapInfoChanged = new Models.MapInfo()
+                {
+                    level_id = l_Map.level_id, name = l_Map.name, sub_name = l_Map.sub_name,
+                    artist = l_Map.artist, mapper = l_Map.mapper, characteristic = l_Map.characteristic,
+                    difficulty = l_Map.difficulty, BSRKey = l_Map.BSRKey, coverRaw = l_Map.coverRaw,
+                    duration = l_Map.duration, BPM = l_Map.BPM, PP = l_Map.PP,
+                    time = l_Map.time, timeMultiplier = l_Map.timeMultiplier,
+                };
             }
+            if (p_Event.scoreEvent != null)
+            {
+                var l_Score = p_Event.scoreEvent;
+                l_Result.scoreEvent = new Models.Score()
+                {
+                    time = l_Score.time, accuracy = l_Score.accuracy, currentHealth = l_Score.currentHealth,
+                    score = l_Score.score, combo = l_Score.combo, missCount = l_Score.missCount,
+                };
+            }
+            l_Result.FeedEvent();
+            return l_Result;
         }
 
-        ////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////
+        private static void ReleaseGameplay()
+        {
+            var l_Previous = m_GameplaySubscriptions;
+            m_GameplaySubscriptions = null;
+            l_Previous?.Unbind();
+            m_AudioTimeSyncController = null;
+            m_ScoreController = null;
+            m_ComboController = null;
+            m_GameEnergyCounter = null;
+            m_PauseController = null;
+        }
 
-        /// <summary>
-        /// On Game State changed
-        /// </summary>
-        /// <param name="p_Scene">New scene</param>
         private static void Logic_OnSceneChange(CP_SDK_BS.Game.Logic.ESceneType p_Scene)
         {
             if (!m_CoverEnabled)
@@ -374,6 +479,7 @@ namespace BeatSaberPlus_SongOverlay.Network
 
             var l_Generation = ++m_GameplayGeneration;
             CoverEncoder.DiscardPending();
+            ReleaseGameplay();
 
             if (p_Scene == CP_SDK_BS.Game.Logic.ESceneType.Playing)
             {
@@ -422,7 +528,7 @@ namespace BeatSaberPlus_SongOverlay.Network
 
                 m_GameStateEvent.gameStateChanged = p_Scene.ToString();
 
-                m_GameStateEventQueued = true;
+                ++m_GameStateRevision;
             }
         }
         private static void ObserveCoverFault(Task<Sprite> p_Task)
@@ -546,11 +652,11 @@ namespace BeatSaberPlus_SongOverlay.Network
             m_MapInfoEvent.mapInfoChanged.time              = m_AudioTimeSyncController.songTime;
             m_MapInfoEvent.mapInfoChanged.timeMultiplier    = m_AudioTimeSyncController.timeScale;
 
-            m_MapInfoEventQueued = true;
+            ++m_MapInfoRevision;
 
             m_GameStateEvent.gameStateChanged = CP_SDK_BS.Game.Logic.ActiveScene.ToString();
 
-            m_GameStateEventQueued = true;
+            ++m_GameStateRevision;
 
             m_ScoreEvent.scoreEvent.time            = m_AudioTimeSyncController.songTime;
             m_ScoreEvent.scoreEvent.score           = 0;
@@ -559,39 +665,16 @@ namespace BeatSaberPlus_SongOverlay.Network
             m_ScoreEvent.scoreEvent.missCount       = 0;
             m_ScoreEvent.scoreEvent.currentHealth   = m_GameEnergyCounter.energy;
 
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
 
             if (p_Type != CP_SDK_BS.Game.LevelType.Multiplayer)
                 m_PauseController = Resources.FindObjectsOfTypeAll<PauseController>().LastOrDefault();
 
-            m_ComboController.comboDidChangeEvent           += ComboController_comboDidChangeEvent;
-            m_ScoreController.scoreDidChangeEvent           += ScoreController_scoreDidChangeEvent;
-            m_GameEnergyCounter.gameEnergyDidChangeEvent    += GameEnergyCounter_gameEnergyDidChangeEvent;
-
-            var l_BeatmapObjectManager = m_ScoreController._beatmapObjectManager;
-            if (l_BeatmapObjectManager != null)
-            {
-                l_BeatmapObjectManager.noteWasCutEvent += ScoreController_noteWasCutEvent;
-                l_BeatmapObjectManager.noteWasMissedEvent += ScoreController_noteWasMissedEvent;
-            }
+            m_GameplaySubscriptions = new GameplaySubscriptions(p_Generation, p_LevelData);
+            m_GameplaySubscriptions.Bind();
 
             if (m_PauseController)
             {
-                m_PauseController.didPauseEvent += () =>
-                {
-                    m_IsPaused = true;
-
-                    m_PauseEvent.pauseTime  = m_AudioTimeSyncController.songTime;
-                    m_PauseEventQueued      = true;
-                };
-                m_PauseController.didResumeEvent += () =>
-                {
-                    m_IsPaused = false;
-
-                    m_ResumeEvent.resumeTime    = m_AudioTimeSyncController.songTime;
-                    m_ResumeEventQueued         = true;
-                };
-
                 m_IsPaused = m_PauseController._paused == PauseController.PauseState.Paused;
             }
             else
@@ -600,12 +683,12 @@ namespace BeatSaberPlus_SongOverlay.Network
             if (m_IsPaused)
             {
                 m_PauseEvent.pauseTime  = m_AudioTimeSyncController.songTime;
-                m_PauseEventQueued      = true;
+                ++m_PauseRevision;
             }
             else
             {
                 m_ResumeEvent.resumeTime    = m_AudioTimeSyncController.songTime;
-                m_ResumeEventQueued         = true;
+                ++m_ResumeRevision;
             }
         }
         /// <summary>
@@ -621,7 +704,7 @@ namespace BeatSaberPlus_SongOverlay.Network
                 return;
 
             m_ScoreEvent.scoreEvent.missCount++;
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
         }
         /// <summary>
         /// Note was missed
@@ -634,7 +717,7 @@ namespace BeatSaberPlus_SongOverlay.Network
                 return;
 
             m_ScoreEvent.scoreEvent.missCount++;
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
         }
         /// <summary>
         /// Combo did change
@@ -644,7 +727,7 @@ namespace BeatSaberPlus_SongOverlay.Network
         {
             m_ScoreEvent.scoreEvent.time            = m_AudioTimeSyncController.songTime;
             m_ScoreEvent.scoreEvent.combo           = (uint)p_Combo;
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
         }
         /// <summary>
         /// On score change
@@ -656,7 +739,7 @@ namespace BeatSaberPlus_SongOverlay.Network
             m_ScoreEvent.scoreEvent.time            = m_AudioTimeSyncController.songTime;
             m_ScoreEvent.scoreEvent.score           = (uint)p_RawScore;
             m_ScoreEvent.scoreEvent.accuracy        = (float)p_Score / (float)m_ScoreController.immediateMaxPossibleMultipliedScore;
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
         }
         /// <summary>
         /// On game energy change
@@ -666,36 +749,11 @@ namespace BeatSaberPlus_SongOverlay.Network
         {
             m_ScoreEvent.scoreEvent.time            = m_AudioTimeSyncController.songTime;
             m_ScoreEvent.scoreEvent.currentHealth   = p_Health;
-            m_ScoreEventQueued = true;
+            ++m_ScoreRevision;
         }
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
 
-        /// <summary>
-        /// Start the Http server
-        /// </summary>
-        private static void InitServer()
-        {
-#if DEBUG
-            Logger.Instance.Debug("Starting SongOverlay server");
-#endif
-
-            m_HttpServer = new HttpServer(SERVER_PORT);
-            m_HttpServer.AddWebSocketService<OverlaySession>("/socket");
-
-            m_HttpServer.Start();
-        }
-        /// <summary>
-        /// Stop the Http server
-        /// </summary>
-        private static void StopServer()
-        {
-#if DEBUG
-            Logger.Instance.Debug("Stopping SongOverlay server");
-#endif
-
-            m_HttpServer.Stop();
-        }
     }
 }

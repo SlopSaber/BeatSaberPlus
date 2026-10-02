@@ -8,12 +8,19 @@ namespace BeatSaberPlus_SongOverlay.Network
     /// </summary>
     internal class OverlaySession : WebSocketBehavior
     {
+        private OverlayTransport m_Transport;
+
+        internal void Bind(OverlayTransport p_Transport)
+        {
+            m_Transport = p_Transport;
+        }
+
         /// <summary>
         /// On connection open
         /// </summary>
         protected override void OnOpen()
         {
-            OverlayServer.OnClientConnected(this);
+            m_Transport?.OnClientConnected(this);
         }
         /// <summary>
         /// On connection close
@@ -21,7 +28,7 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// <param name="p_Event"></param>
         protected override void OnClose(CloseEventArgs p_Event)
         {
-            OverlayServer.OnClientDisconnected(this);
+            m_Transport?.OnClientDisconnected(this);
         }
 
         ////////////////////////////////////////////////////////////////////////////
