@@ -44,6 +44,19 @@ namespace ChatPlexMod_MenuMusic.Data
             m_SongArtist    = p_SongArtist.Trim();
         }
 
+        private Music(IMusicProvider p_MusicProvider)
+            => m_MusicProvider = p_MusicProvider;
+
+        // Metadata must already have the public constructor's normalization.
+        internal static Music FromPrepared(IMusicProvider p_MusicProvider, string p_SongPath, string p_SongCoverPath, string p_SongName, string p_SongArtist)
+            => new Music(p_MusicProvider)
+            {
+                m_SongPath = p_SongPath,
+                m_SongCoverPath = p_SongCoverPath,
+                m_SongName = p_SongName,
+                m_SongArtist = p_SongArtist
+            };
+
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
 

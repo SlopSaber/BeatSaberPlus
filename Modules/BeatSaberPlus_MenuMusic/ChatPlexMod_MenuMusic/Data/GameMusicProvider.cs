@@ -1,7 +1,10 @@
 ﻿using BeatSaberPlus_MenuMusic;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
+using System.Threading.Tasks;
 using System.Linq;
 using UnityEngine;
 
@@ -14,6 +17,8 @@ namespace ChatPlexMod_MenuMusic.Data
     {
         private List<Music> m_Musics    = new List<Music>();
         private bool        m_IsLoading = false;
+
+        private static Task s_LastLoadPublication;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -203,7 +208,7 @@ namespace ChatPlexMod_MenuMusic.Data
             for (var l_I = 0; l_I < m_Musics.Count; ++l_I)
             {
                 var l_Swapped = m_Musics[l_I];
-                var l_NewIndex = Random.Range(l_I, m_Musics.Count);
+                var l_NewIndex = UnityEngine.Random.Range(l_I, m_Musics.Count);
 
                 m_Musics[l_I] = m_Musics[l_NewIndex];
                 m_Musics[l_NewIndex] = l_Swapped;
@@ -222,30 +227,202 @@ namespace ChatPlexMod_MenuMusic.Data
 #if BEATSABER
             yield return new WaitUntil(() => !SongCore.Loader.AreSongsLoading && SongCore.Loader.CustomLevels.Count > 0);
 
-            foreach (var l_Current in SongCore.Loader.CustomLevels)
+            var l_PreviousPublication = s_LastLoadPublication;
+            var l_Publication = new TaskCompletionSource<bool>();
+            s_LastLoadPublication = l_Publication.Task;
+
+            var l_Culture = CultureInfo.CurrentCulture;
+            if (l_Culture.GetType() != typeof(CultureInfo) || l_Culture.TextInfo.GetType() != typeof(TextInfo))
             {
-                if (!(l_Current.Value.previewMediaData is FileSystemPreviewMediaData l_FileSystemPreviewMediaData))
-                    continue;
+                while (l_PreviousPublication != null && !l_PreviousPublication.IsCompleted)
+                    yield return null;
 
-                var l_Extension = Path.GetExtension(l_FileSystemPreviewMediaData._previewAudioClipPath).ToLower();
-                if (l_Extension != ".egg" && l_Extension != ".ogg")
-                    continue;
-
-                m_Musics.Add(new Music(
-                    this,
-                    l_FileSystemPreviewMediaData._previewAudioClipPath,
-                    l_FileSystemPreviewMediaData._coverSpritePath,
-                    l_Current.Value.songName,
-                    l_Current.Value.songAuthorName
-                ));
+                try
+                {
+                    LoadGameSongsOnOwner();
+                    Shuffle();
+                    m_IsLoading = false;
+                }
+                finally
+                {
+                    CompletePublication(l_Publication);
+                }
+                yield break;
             }
 
-            Shuffle();
+            var l_Rows = new List<RawMusicRow>();
+            Exception l_CaptureError = null;
+            try
+            {
+                foreach (var l_Current in SongCore.Loader.CustomLevels)
+                {
+                    if (!(l_Current.Value.previewMediaData is FileSystemPreviewMediaData l_Preview))
+                        continue;
+
+                    l_Rows.Add(new RawMusicRow(l_Preview._previewAudioClipPath, l_Preview._coverSpritePath,
+                        l_Current.Value.songName, l_Current.Value.songAuthorName));
+                }
+            }
+            catch (Exception p_Exception)
+            {
+                l_CaptureError = p_Exception;
+            }
+
+            PreparationRequest l_Request = null;
+            Exception l_SetupError = null;
+            try
+            {
+                var l_TextInfo = TextInfo.ReadOnly((TextInfo)l_Culture.TextInfo.Clone());
+                l_Request = new PreparationRequest(l_Rows.ToArray(), l_TextInfo);
+            }
+            catch (Exception p_Exception)
+            {
+                l_SetupError = p_Exception;
+            }
+
+            // Keep physical preparation and owner publication in admission order.
+            while (l_PreviousPublication != null && !l_PreviousPublication.IsCompleted)
+                yield return null;
+
+            Task l_Preparation = null;
+            if (l_SetupError == null)
+            {
+                try
+                {
+                    l_Preparation = Task.Run(l_Request.Run);
+                }
+                catch (Exception p_Exception)
+                {
+                    l_SetupError = p_Exception;
+                }
+            }
+
+            while (l_Preparation != null && !l_Preparation.IsCompleted)
+                yield return null;
+
+            try
+            {
+                if (l_SetupError != null)
+                    throw l_SetupError;
+                if (l_Preparation.IsFaulted)
+                    throw l_Preparation.Exception.GetBaseException();
+
+                foreach (var l_Row in l_Request.Result.Rows)
+                    m_Musics.Add(Music.FromPrepared(this, l_Row.SongPath, l_Row.CoverPath, l_Row.SongName, l_Row.SongArtist));
+
+                if (l_Request.Result.Error != null)
+                    throw l_Request.Result.Error;
+                if (l_CaptureError != null)
+                    throw l_CaptureError;
+
+                Shuffle();
+                m_IsLoading = false;
+            }
+            finally
+            {
+                CompletePublication(l_Publication);
+            }
 #else
 #error Missing game implementation
 #endif
+        }
 
-            m_IsLoading = false;
+        private static void CompletePublication(TaskCompletionSource<bool> p_Publication)
+        {
+            p_Publication.SetResult(true);
+            if (ReferenceEquals(s_LastLoadPublication, p_Publication.Task))
+                s_LastLoadPublication = null;
+        }
+
+#if BEATSABER
+        private void LoadGameSongsOnOwner()
+        {
+            foreach (var l_Current in SongCore.Loader.CustomLevels)
+            {
+                if (!(l_Current.Value.previewMediaData is FileSystemPreviewMediaData l_Preview))
+                    continue;
+
+                var l_Extension = Path.GetExtension(l_Preview._previewAudioClipPath).ToLower();
+                if (l_Extension != ".egg" && l_Extension != ".ogg")
+                    continue;
+
+                m_Musics.Add(new Music(this, l_Preview._previewAudioClipPath, l_Preview._coverSpritePath,
+                    l_Current.Value.songName, l_Current.Value.songAuthorName));
+            }
+        }
+#endif
+
+        private sealed class RawMusicRow
+        {
+            public readonly string SongPath;
+            public readonly string CoverPath;
+            public readonly string SongName;
+            public readonly string SongArtist;
+
+            public RawMusicRow(string p_SongPath, string p_CoverPath, string p_SongName, string p_SongArtist)
+            {
+                SongPath = p_SongPath;
+                CoverPath = p_CoverPath;
+                SongName = p_SongName;
+                SongArtist = p_SongArtist;
+            }
+        }
+
+        private sealed class PreparedMusicRow
+        {
+            public readonly string SongPath;
+            public readonly string CoverPath;
+            public readonly string SongName;
+            public readonly string SongArtist;
+
+            public PreparedMusicRow(RawMusicRow p_Row)
+            {
+                SongPath = p_Row.SongPath.Replace('\\', '/');
+                CoverPath = p_Row.CoverPath?.Replace('\\', '/');
+                SongName = p_Row.SongName.Trim();
+                SongArtist = p_Row.SongArtist.Trim();
+            }
+        }
+
+        private sealed class PreparationResult
+        {
+            public readonly List<PreparedMusicRow> Rows = new List<PreparedMusicRow>();
+            public Exception Error;
+        }
+
+        private sealed class PreparationRequest
+        {
+            private readonly RawMusicRow[] m_Rows;
+            private readonly TextInfo m_TextInfo;
+            public readonly PreparationResult Result = new PreparationResult();
+
+            public PreparationRequest(RawMusicRow[] p_Rows, TextInfo p_TextInfo)
+            {
+                m_Rows = p_Rows;
+                m_TextInfo = p_TextInfo;
+            }
+
+            public void Run()
+            {
+                try
+                {
+                    foreach (var l_Row in m_Rows)
+                    {
+                        var l_Extension = Path.GetExtension(l_Row.SongPath);
+                        if (l_Extension.Length == 0)
+                            continue;
+                        l_Extension = m_TextInfo.ToLower(l_Extension);
+                        if (l_Extension != ".egg" && l_Extension != ".ogg")
+                            continue;
+
+                        Result.Rows.Add(new PreparedMusicRow(l_Row));
+                    }
+                }
+                catch (Exception p_Exception)
+                {
+                    Result.Error = p_Exception;
+                }
+            }
         }
     }
 }
