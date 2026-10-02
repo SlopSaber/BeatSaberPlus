@@ -2,6 +2,7 @@
 using CP_SDK.XUI;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace BeatSaberPlus_NoteTweaker.UI.Modals
@@ -15,6 +16,8 @@ namespace BeatSaberPlus_NoteTweaker.UI.Modals
 
         private Action m_Callback = null;
         private string m_Selected = null;
+        private object m_Session = null;
+        private bool m_Busy = false;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -48,8 +51,13 @@ namespace BeatSaberPlus_NoteTweaker.UI.Modals
         /// </summary>
         public override void OnClose()
         {
-
+            m_Session = null;
+            m_Callback = null;
+            m_Busy = false;
         }
+
+        private void OnDisable() => OnClose();
+        private void OnDestroy() => OnClose();
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -60,16 +68,48 @@ namespace BeatSaberPlus_NoteTweaker.UI.Modals
         /// <param name="p_Callback">Callback</param>
         public void Init(Action p_Callback)
         {
-            m_Callback = null;
-            m_Selected = string.Empty;
-
-            var l_Files = new List<string>();
-            foreach (var l_File in System.IO.Directory.GetFiles(NoteTweaker.IMPORT_FOLDER, "*.bspnt"))
-                l_Files.Add(System.IO.Path.GetFileNameWithoutExtension(l_File));
-
-            m_Dropdown.SetOptions(l_Files);
-
+            m_Session = new object();
             m_Callback = p_Callback;
+            m_Selected = string.Empty;
+            m_Busy = true;
+            m_Dropdown.SetInteractable(false).SetOptions(new List<string>());
+
+            var l_Operation = NoteTweaker.BeginProfileScan();
+            CP_SDK.Unity.MTCoroutineStarter.Start(WaitForProfiles(l_Operation, m_Session, NoteTweaker.FileSession));
+        }
+
+        private bool IsCurrent(object p_Session, object p_ModuleSession)
+        {
+            return this && VController && gameObject.activeInHierarchy
+                && object.ReferenceEquals(m_Session, p_Session)
+                && object.ReferenceEquals(NoteTweaker.FileSession, p_ModuleSession);
+        }
+
+        private IEnumerator WaitForProfiles(NoteTweaker.ProfileFileOperation p_Operation, object p_Session, object p_ModuleSession)
+        {
+            while (!p_Operation.Completion.IsCompleted)
+                yield return null;
+
+            var l_Result = p_Operation.Result;
+            LogFileError(l_Result.Error);
+            if (!IsCurrent(p_Session, p_ModuleSession))
+                yield break;
+            if (l_Result.Error != null)
+            {
+                VController.CloseModal(this);
+                VController.ShowMessageModal("Error reading profiles!");
+                yield break;
+            }
+            m_Dropdown.SetOptions(l_Result.Names).SetInteractable(true);
+            m_Busy = false;
+        }
+
+        private static void LogFileError(Exception p_Error)
+        {
+            if (p_Error == null)
+                return;
+            Logger.Instance.Error("[BeatSaberPlus_NoteTweaker.UI][ProfileImportModal.ProfileFile] Error:");
+            Logger.Instance.Error(p_Error);
         }
 
         ////////////////////////////////////////////////////////////////////////////
@@ -87,50 +127,69 @@ namespace BeatSaberPlus_NoteTweaker.UI.Modals
         /// </summary>
         private void OnImportButton()
         {
-            var l_FileName = NoteTweaker.IMPORT_FOLDER + m_Selected + ".bspnt";
+            if (m_Busy)
+                return;
+            m_Busy = true;
+            m_Dropdown.SetInteractable(false);
+            var l_Operation = NoteTweaker.BeginProfileImport(m_Selected);
+            CP_SDK.Unity.MTCoroutineStarter.Start(WaitForProfileImport(l_Operation, m_Session, NoteTweaker.FileSession));
+        }
 
-            if (System.IO.File.Exists(l_FileName))
+        private IEnumerator WaitForProfileImport(NoteTweaker.ProfileFileOperation p_Operation, object p_Session, object p_ModuleSession)
+        {
+            while (!p_Operation.Completion.IsCompleted)
+                yield return null;
+
+            var l_Result = p_Operation.Result;
+            LogFileError(l_Result.Error);
+            if (!IsCurrent(p_Session, p_ModuleSession))
+                yield break;
+            if (l_Result.Error != null || l_Result.Missing || l_Result.Invalid)
             {
-                var l_Raw = System.IO.File.ReadAllText(l_FileName, System.Text.Encoding.Unicode);
+                VController.CloseModal(this);
+                VController.ShowMessageModal(l_Result.Error != null ? "Error reading profile!"
+                    : l_Result.Missing ? "File not found!" : "Invalid file!");
+                yield break;
+            }
 
+            var l_NewProfile = l_Result.Profile;
+            if (l_Result.ParseOnOwner)
+            {
+                bool l_Invalid = false;
                 try
                 {
-                    var l_NewProfile = JsonConvert.DeserializeObject<NTConfig._Profile>(l_Raw, new JsonConverter[]
-                    {
-                        new CP_SDK.Config.JsonConverters.ColorConverter()
-                    });
-
+                    l_NewProfile = JsonConvert.DeserializeObject<NTConfig._Profile>(l_Result.Raw,
+                        new JsonConverter[] { new CP_SDK.Config.JsonConverters.ColorConverter() });
                     l_NewProfile.Name += " (Imported)";
-
-                    if (l_NewProfile != null)
-                    {
-                        NTConfig.Instance.Profiles.Add(l_NewProfile);
-
-                        VController.CloseModal(this);
-
-                        try { m_Callback?.Invoke(); }
-                        catch (System.Exception l_Exception)
-                        {
-                            Logger.Instance.Error($"[BeatSaberPlus_NoteTweaker.UI][ProfileImportModal.OnImportButton] Error:");
-                            Logger.Instance.Error(l_Exception);
-                        }
-                    }
-                    else
-                    {
-                        VController.CloseModal(this);
-                        VController.ShowMessageModal("Error importing profile!");
-                    }
                 }
-                catch
+                catch { l_Invalid = true; }
+                if (!IsCurrent(p_Session, p_ModuleSession))
+                    yield break;
+                if (l_Invalid)
                 {
                     VController.CloseModal(this);
                     VController.ShowMessageModal("Invalid file!");
+                    yield break;
                 }
             }
-            else
+
+            if (!IsCurrent(p_Session, p_ModuleSession))
+                yield break;
+            if (l_NewProfile == null)
             {
                 VController.CloseModal(this);
-                VController.ShowMessageModal("File not found!");
+                VController.ShowMessageModal("Error importing profile!");
+                yield break;
+            }
+
+            var l_Callback = m_Callback;
+            NTConfig.Instance.Profiles.Add(l_NewProfile);
+            VController.CloseModal(this);
+            try { l_Callback?.Invoke(); }
+            catch (Exception l_Exception)
+            {
+                Logger.Instance.Error("[BeatSaberPlus_NoteTweaker.UI][ProfileImportModal.OnImportButton] Error:");
+                Logger.Instance.Error(l_Exception);
             }
         }
     }

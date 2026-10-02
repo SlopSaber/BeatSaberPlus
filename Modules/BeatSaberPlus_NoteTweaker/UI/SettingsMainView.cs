@@ -1,7 +1,7 @@
 ﻿using CP_SDK.UI.Data;
 using CP_SDK.Unity.Extensions;
 using CP_SDK.XUI;
-using Newtonsoft.Json;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -50,6 +50,7 @@ namespace BeatSaberPlus_NoteTweaker.UI
         private List<TextListItem>  m_Items             = new List<TextListItem>();
         private TextListItem        m_SelectedItem      = null;
         private bool                m_PreventChanges    = false;
+        private object              m_FileSession       = new object();
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -87,6 +88,7 @@ namespace BeatSaberPlus_NoteTweaker.UI
         /// </summary>
         protected override sealed void OnViewDeactivation()
         {
+            m_FileSession = new object();
             NTConfig.Instance.Save();
         }
 
@@ -533,17 +535,32 @@ namespace BeatSaberPlus_NoteTweaker.UI
                 return;
             }
 
-            var l_Serialized = JsonConvert.SerializeObject(l_Profile, Formatting.Indented, new JsonConverter[]
+            var l_ViewSession = m_FileSession;
+            var l_ModuleSession = NoteTweaker.FileSession;
+            var l_Operation = NoteTweaker.BeginProfileExport(l_Profile);
+            CP_SDK.Unity.MTCoroutineStarter.Start(WaitForProfileExport(l_Operation, l_ViewSession, l_ModuleSession));
+        }
+
+        private IEnumerator WaitForProfileExport(NoteTweaker.ProfileFileOperation p_Operation, object p_ViewSession, object p_ModuleSession)
+        {
+            while (!p_Operation.Completion.IsCompleted)
+                yield return null;
+
+            var l_Result = p_Operation.Result;
+            if (l_Result.Error != null)
             {
-                new CP_SDK.Config.JsonConverters.ColorConverter()
-            });
+                Logger.Instance.Error("[BeatSaberPlus_NoteTweaker.UI][SettingsMainView.ProfileExport] Error:");
+                Logger.Instance.Error(l_Result.Error);
+            }
+            if (!this || !gameObject.activeInHierarchy
+                || !object.ReferenceEquals(m_FileSession, p_ViewSession)
+                || !object.ReferenceEquals(NoteTweaker.FileSession, p_ModuleSession))
+                yield break;
 
-            var l_FileName = CP_SDK.Misc.Time.UnixTimeNow() + "_" + l_Profile.Name + ".bspnt";
-            l_FileName = string.Concat(l_FileName.Split(System.IO.Path.GetInvalidFileNameChars()));
-
-            System.IO.File.WriteAllText(NoteTweaker.EXPORT_FOLDER + l_FileName, l_Serialized, System.Text.Encoding.Unicode);
-
-            ShowMessageModal("Profile exported in\n" + NoteTweaker.EXPORT_FOLDER);
+            if (l_Result.Error != null)
+                ShowMessageModal("Error exporting profile!");
+            else
+                ShowMessageModal("Profile exported in\n" + NoteTweaker.EXPORT_FOLDER);
         }
         /// <summary>
         /// Import an profile
