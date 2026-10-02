@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace BeatSaberPlus_SongOverlay.Network
 {
@@ -72,6 +73,104 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// </summary>
         private static PauseController m_PauseController;
 
+        private static bool m_CoverEnabled;
+        private static long m_GameplayGeneration;
+        private static bool m_CoverReady = true;
+
+        private sealed class CoverRequest
+        {
+            private readonly byte[] m_Pixels;
+            private readonly GraphicsFormat m_Format;
+            private readonly uint m_Width;
+            private readonly uint m_Height;
+
+            internal readonly TaskCompletionSource<string> Completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            internal CoverRequest(byte[] p_Pixels, GraphicsFormat p_Format, uint p_Width, uint p_Height)
+            {
+                m_Pixels = p_Pixels;
+                m_Format = p_Format;
+                m_Width = p_Width;
+                m_Height = p_Height;
+            }
+
+            internal string Encode()
+            {
+                try
+                {
+                    return Convert.ToBase64String(ImageConversion.EncodeArrayToPNG(m_Pixels, m_Format, m_Width, m_Height));
+                }
+                catch
+                {
+                    return "";
+                }
+            }
+        }
+
+        private static class CoverEncoder
+        {
+            private static readonly object m_Gate = new object();
+            private static CoverRequest m_Current;
+            private static CoverRequest m_Pending;
+            private static Task<string> m_Running;
+
+            internal static Task<string> Queue(CoverRequest p_Request)
+            {
+                lock (m_Gate)
+                {
+                    m_Pending?.Completion.TrySetCanceled();
+                    m_Pending = p_Request;
+                    if (m_Running == null)
+                        StartPending();
+                }
+                return p_Request.Completion.Task;
+            }
+
+            internal static void DiscardPending()
+            {
+                lock (m_Gate)
+                {
+                    m_Pending?.Completion.TrySetCanceled();
+                    m_Pending = null;
+                }
+            }
+
+            private static void StartPending()
+            {
+                m_Current = m_Pending;
+                m_Pending = null;
+                try
+                {
+                    m_Running = Task.Run(m_Current.Encode);
+                }
+                catch
+                {
+                    m_Current.Completion.TrySetResult("");
+                    m_Current = null;
+                    return;
+                }
+                m_Running.ContinueWith(OnCompleted, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
+
+            private static void OnCompleted(Task<string> p_Task)
+            {
+                lock (m_Gate)
+                {
+                    if (!ReferenceEquals(m_Running, p_Task))
+                        return;
+
+                    // Retirement only discards pending work; the running slot lasts until physical completion.
+                    m_Running = null;
+                    m_Current.Completion.TrySetResult(p_Task.Status == TaskStatus.RanToCompletion ? p_Task.Result : "");
+                    if (p_Task.IsFaulted)
+                        _ = p_Task.Exception;
+                    m_Current = null;
+                    if (m_Pending != null)
+                        StartPending();
+                }
+            }
+        }
+
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
 
@@ -80,6 +179,10 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// </summary>
         internal static void Start()
         {
+            m_CoverEnabled = true;
+            ++m_GameplayGeneration;
+            CoverEncoder.DiscardPending();
+
             /// Bind events
             CP_SDK_BS.Game.Logic.OnSceneChange += Logic_OnSceneChange;
             Application.quitting += Stop;
@@ -184,6 +287,10 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// </summary>
         internal static void Stop()
         {
+            m_CoverEnabled = false;
+            ++m_GameplayGeneration;
+            CoverEncoder.DiscardPending();
+
             /// Unbing events
             Application.quitting -= Stop;
             CP_SDK_BS.Game.Logic.OnSceneChange -= Logic_OnSceneChange;
@@ -262,6 +369,12 @@ namespace BeatSaberPlus_SongOverlay.Network
         /// <param name="p_Scene">New scene</param>
         private static void Logic_OnSceneChange(CP_SDK_BS.Game.Logic.ESceneType p_Scene)
         {
+            if (!m_CoverEnabled)
+                return;
+
+            var l_Generation = ++m_GameplayGeneration;
+            CoverEncoder.DiscardPending();
+
             if (p_Scene == CP_SDK_BS.Game.Logic.ESceneType.Playing)
             {
                 m_IsPaused = false;
@@ -273,10 +386,17 @@ namespace BeatSaberPlus_SongOverlay.Network
                 var l_WorkingMapInfo = m_MapInfoEvent.mapInfoChanged;
                 var l_CoverTask      = null as Task<Sprite>;
 
-                if (l_WorkingMapInfo.level_id != l_Map.Data.beatmapLevel.levelID)
+                var l_MapChanged = l_WorkingMapInfo.level_id != l_Map.Data.beatmapLevel.levelID;
+                if (l_MapChanged || !m_CoverReady)
                 {
                     try { l_CoverTask = l_Map.Data.beatmapLevel.previewMediaData?.GetCoverSpriteAsync(); } catch { }
+                    m_CoverReady = l_CoverTask == null;
+                    if (l_CoverTask != null)
+                        l_CoverTask.ContinueWith(ObserveCoverFault, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                }
 
+                if (l_MapChanged)
+                {
                     l_WorkingMapInfo.level_id   = l_Map.Data.beatmapLevel.levelID;
                     l_WorkingMapInfo.name       = l_Map.Data.beatmapLevel.songName;
                     l_WorkingMapInfo.sub_name   = l_Map.Data.beatmapLevel.songSubName;
@@ -291,7 +411,7 @@ namespace BeatSaberPlus_SongOverlay.Network
                 l_WorkingMapInfo.characteristic = l_Map.Data.beatmapKey.characteristic.ToString();
                 l_WorkingMapInfo.difficulty     = l_Map.Data.beatmapKey.difficulty.ToString();
 
-                CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_WaitForGameplayReady(l_Map.Type, l_CoverTask));
+                CP_SDK.Unity.MTCoroutineStarter.Start(Coroutine_WaitForGameplayReady(l_Map.Type, l_CoverTask, l_Generation, l_Map));
             }
             else if (p_Scene == CP_SDK_BS.Game.Logic.ESceneType.Menu)
             {
@@ -305,21 +425,46 @@ namespace BeatSaberPlus_SongOverlay.Network
                 m_GameStateEventQueued = true;
             }
         }
+        private static void ObserveCoverFault(Task<Sprite> p_Task)
+        {
+            _ = p_Task.Exception;
+        }
+
+        private static bool IsCurrentGameplay(long p_Generation, object p_LevelData)
+        {
+            return m_CoverEnabled && m_GameplayGeneration == p_Generation
+                && CP_SDK_BS.Game.Logic.ActiveScene == CP_SDK_BS.Game.Logic.ESceneType.Playing
+                && ReferenceEquals(CP_SDK_BS.Game.Logic.LevelData, p_LevelData);
+        }
+
         /// <summary>
         /// On gameplay start coroutine
         /// </summary>
         /// <returns></returns>
-        private static IEnumerator Coroutine_WaitForGameplayReady(CP_SDK_BS.Game.LevelType p_Type, Task<Sprite> p_CoverTask)
+        private static IEnumerator Coroutine_WaitForGameplayReady(CP_SDK_BS.Game.LevelType p_Type, Task<Sprite> p_CoverTask, long p_Generation, object p_LevelData)
         {
+            if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                yield break;
+
             if (p_CoverTask != null)
             {
-                yield return new WaitUntil(() => p_CoverTask.IsCompleted || p_CoverTask.Exception != null);
+                while (!p_CoverTask.IsCompleted)
+                {
+                    if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                        yield break;
+                    yield return null;
+                }
+                if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                    yield break;
 
                 var l_BackupRenderTexture = RenderTexture.active;
+                RenderTexture l_NewRenderTexture = null;
+                Texture2D l_NewCover = null;
+                CoverRequest l_Request = null;
                 try
                 {
                     var l_Texture           = p_CoverTask.Result.texture;
-                    var l_NewRenderTexture  = RenderTexture.GetTemporary(l_Texture.width, l_Texture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+                    l_NewRenderTexture = RenderTexture.GetTemporary(l_Texture.width, l_Texture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
 
                     Graphics.Blit(l_Texture, l_NewRenderTexture);
                     RenderTexture.active = l_NewRenderTexture;
@@ -327,7 +472,7 @@ namespace BeatSaberPlus_SongOverlay.Network
                     var l_Rect  = p_CoverTask.Result.rect;
                     var l_UV    = p_CoverTask.Result.uv[0];
 
-                    var l_NewCover = new Texture2D((int)l_Rect.width, (int)l_Rect.height);
+                    l_NewCover = new Texture2D((int)l_Rect.width, (int)l_Rect.height);
 
                     l_NewCover.ReadPixels(new Rect(
                         l_UV.x * l_Texture.width,
@@ -337,24 +482,61 @@ namespace BeatSaberPlus_SongOverlay.Network
                     ), 0, 0);
                     l_NewCover.Apply();
 
-                    RenderTexture.ReleaseTemporary(l_NewRenderTexture);
-
-                    m_MapInfoEvent.mapInfoChanged.coverRaw = System.Convert.ToBase64String(ImageConversion.EncodeToPNG(l_NewCover));
+                    l_Request = new CoverRequest(l_NewCover.GetRawTextureData(), l_NewCover.graphicsFormat, (uint)l_NewCover.width, (uint)l_NewCover.height);
                 }
                 catch
                 {
-                    m_MapInfoEvent.mapInfoChanged.coverRaw = "";
+                    l_Request = null;
                 }
-                RenderTexture.active = l_BackupRenderTexture;
+                finally
+                {
+                    RenderTexture.active = l_BackupRenderTexture;
+                    if (l_NewRenderTexture != null)
+                        RenderTexture.ReleaseTemporary(l_NewRenderTexture);
+                    if (l_NewCover != null)
+                        UnityEngine.Object.Destroy(l_NewCover);
+                }
+
+                if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                    yield break;
+
+                if (l_Request != null)
+                {
+                    var l_Encoding = CoverEncoder.Queue(l_Request);
+                    while (!l_Encoding.IsCompleted)
+                    {
+                        if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                            yield break;
+                        yield return null;
+                    }
+                    if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                        yield break;
+                    m_MapInfoEvent.mapInfoChanged.coverRaw = l_Encoding.Status == TaskStatus.RanToCompletion ? l_Encoding.Result : "";
+                }
+                else
+                    m_MapInfoEvent.mapInfoChanged.coverRaw = "";
+                m_CoverReady = true;
             }
 
-            yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault());
-            yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<ScoreController>().LastOrDefault());
-            yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<ComboController>().LastOrDefault());
-            yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<GameEnergyCounter>().LastOrDefault());
+            yield return new WaitUntil(() => !IsCurrentGameplay(p_Generation, p_LevelData) || Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault());
+            if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                yield break;
+            yield return new WaitUntil(() => !IsCurrentGameplay(p_Generation, p_LevelData) || Resources.FindObjectsOfTypeAll<ScoreController>().LastOrDefault());
+            if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                yield break;
+            yield return new WaitUntil(() => !IsCurrentGameplay(p_Generation, p_LevelData) || Resources.FindObjectsOfTypeAll<ComboController>().LastOrDefault());
+            if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                yield break;
+            yield return new WaitUntil(() => !IsCurrentGameplay(p_Generation, p_LevelData) || Resources.FindObjectsOfTypeAll<GameEnergyCounter>().LastOrDefault());
+            if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                yield break;
 
             if (p_Type != CP_SDK_BS.Game.LevelType.Multiplayer)
-                yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<PauseController>().LastOrDefault());
+            {
+                yield return new WaitUntil(() => !IsCurrentGameplay(p_Generation, p_LevelData) || Resources.FindObjectsOfTypeAll<PauseController>().LastOrDefault());
+                if (!IsCurrentGameplay(p_Generation, p_LevelData))
+                    yield break;
+            }
 
             m_AudioTimeSyncController   = Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault();
             m_ScoreController           = Resources.FindObjectsOfTypeAll<ScoreController>().LastOrDefault();
