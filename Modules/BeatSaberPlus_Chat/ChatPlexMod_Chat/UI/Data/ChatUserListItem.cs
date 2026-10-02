@@ -24,11 +24,27 @@ namespace ChatPlexMod_Chat.UI.Data
             Service = p_Service;
             User    = p_User;
 
-            Text = "<align=\"left\">[" + Service.DisplayName + "] ";
-                    if (User.IsModerator || User.IsBroadcaster)    Text += "🗡 <color=yellow>";
-            else if (User.IsVip)                                Text += "💎 <color=red>";
-            else if (User.IsSubscriber)                         Text += "👑 <color=#008eff>";
-            Text += User.DisplayName;
+            var l_ServiceName  = Service.DisplayName;
+            var l_IsModerator  = User.IsModerator || User.IsBroadcaster;
+            var l_IsVip        = !l_IsModerator && User.IsVip;
+            var l_IsSubscriber = !l_IsModerator && !l_IsVip && User.IsSubscriber;
+            Text = FormatText(l_ServiceName, User.DisplayName, l_IsModerator, l_IsVip, l_IsSubscriber);
+        }
+
+        internal ChatUserListItem(IChatService p_Service, IChatUser p_User, string p_Text)
+        {
+            Service = p_Service;
+            User    = p_User;
+            Text    = p_Text;
+        }
+
+        internal static string FormatText(string p_ServiceName, string p_DisplayName, bool p_IsModerator, bool p_IsVip, bool p_IsSubscriber)
+        {
+            var l_Role = p_IsModerator ? "🗡 <color=yellow>"
+                       : p_IsVip ? "💎 <color=red>"
+                       : p_IsSubscriber ? "👑 <color=#008eff>"
+                       : string.Empty;
+            return "<align=\"left\">[" + p_ServiceName + "] " + l_Role + p_DisplayName;
         }
 
         ////////////////////////////////////////////////////////////////////////////

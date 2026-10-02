@@ -56,12 +56,23 @@ namespace ChatPlexMod_Chat
         private Button      m_ModerationButton      = null;
         private RectTransform m_TitleBarOverlay     = null;
 
-        private CP_SDK.Misc.RingBuffer<(IChatService, IChatUser)>   m_LastChatUsers     = null;
+        private volatile CP_SDK.Misc.RingBuffer<(IChatService, IChatUser)> m_LastChatUsers = null;
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
 
-        internal List<(IChatService, IChatUser)> LastChatUsers => m_LastChatUsers == null ? new List<(IChatService, IChatUser)>() : m_LastChatUsers.ToList();
+        internal List<(IChatService, IChatUser)> LastChatUsers
+        {
+            get
+            {
+                var l_Users = m_LastChatUsers;
+                if (l_Users == null)
+                    return new List<(IChatService, IChatUser)>();
+
+                lock (l_Users)
+                    return l_Users.ToList();
+            }
+        }
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -149,7 +160,9 @@ namespace ChatPlexMod_Chat
                 m_ActionDequeueRun = false;
 
                 m_ActionQueue = new ConcurrentQueue<Action>();
-                m_LastChatUsers.Clear();
+                var l_Users = m_LastChatUsers;
+                lock (l_Users)
+                    l_Users.Clear();
             }
 
             /// Unbind events
@@ -694,10 +707,11 @@ namespace ChatPlexMod_Chat
         /// <param name="p_Message">ID of the message</param>
         private void Mutiplixer_OnTextMessageReceived(IChatService p_ChatService, IChatMessage p_Message)
         {
-            lock (m_LastChatUsers)
+            var l_Users = m_LastChatUsers;
+            lock (l_Users)
             {
-                if (m_LastChatUsers.Count(x => x.Item1 == p_ChatService && x.Item2.UserName == p_Message.Sender.UserName) == 0)
-                    m_LastChatUsers.Add((p_ChatService, p_Message.Sender));
+                if (l_Users.Count(x => x.Item1 == p_ChatService && x.Item2.UserName == p_Message.Sender.UserName) == 0)
+                    l_Users.Add((p_ChatService, p_Message.Sender));
             }
 
             QueueOrSendChatAction(() => m_ChatFloatingPanelView.OnTextMessageReceived(p_ChatService, p_Message));

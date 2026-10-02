@@ -1,5 +1,11 @@
 ﻿using CP_SDK.XUI;
 using System.Collections.Generic;
+using CP_SDK.Chat.Interfaces;
+using CP_SDK.Chat.Models.Twitch;
+using CP_SDK.Chat.Services.Twitch;
+using System;
+using System.Globalization;
+using System.Threading.Tasks;
 using UnityEngine.UI;
 
 namespace ChatPlexMod_Chat.UI
@@ -16,6 +22,36 @@ namespace ChatPlexMod_Chat.UI
 
         private List<Data.ChatUserListItem>  m_Items         = new List<Data.ChatUserListItem>();
         private Data.ChatUserListItem        m_SelectedItem  = null;
+        private long                        m_RefreshRevision;
+        private bool                        m_ViewActive;
+        private RefreshRequest              m_PendingRefresh;
+        private Task<List<PreparedUserRow>>  m_Preparation;
+
+        private sealed class UserRowSnapshot
+        {
+            internal int Index;
+            internal string ServiceName;
+            internal string DisplayName;
+            internal bool IsModerator;
+            internal bool IsBroadcaster;
+            internal bool IsVip;
+            internal bool IsSubscriber;
+        }
+
+        private sealed class PreparedUserRow
+        {
+            internal int Index;
+            internal string DisplayName;
+            internal string Text;
+        }
+
+        private sealed class RefreshRequest
+        {
+            internal long Revision;
+            internal List<(IChatService, IChatUser)> Bindings;
+            internal UserRowSnapshot[] Rows;
+            internal CompareInfo Comparison;
+        }
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -61,7 +97,20 @@ namespace ChatPlexMod_Chat.UI
         /// On view activation
         /// </summary>
         protected override void OnViewActivation()
-            => Refresh();
+        {
+            m_ViewActive = true;
+            Refresh();
+        }
+
+        protected override void OnViewDeactivation()
+        {
+            m_ViewActive = false;
+            ++m_RefreshRevision;
+            m_PendingRefresh = null;
+        }
+
+        protected override void OnViewDestruction()
+            => OnViewDeactivation();
 
         ////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////
@@ -71,12 +120,143 @@ namespace ChatPlexMod_Chat.UI
         /// </summary>
         internal void Refresh()
         {
+            var l_Revision = ++m_RefreshRevision;
+            m_PendingRefresh = null;
+            var l_Users = Chat.Instance.LastChatUsers;
+
+            if (!m_ViewActive || l_Users.Count == 0)
+            {
+                PublishImmediate(l_Users);
+                return;
+            }
+
+            foreach (var l_User in l_Users)
+            {
+                if (l_User.Item1?.GetType() != typeof(TwitchService) || l_User.Item2?.GetType() != typeof(TwitchUser))
+                {
+                    PublishImmediate(l_Users);
+                    return;
+                }
+            }
+
+            var l_Rows = new UserRowSnapshot[l_Users.Count];
+            for (int l_I = 0; l_I < l_Users.Count; ++l_I)
+            {
+                var l_User = l_Users[l_I].Item2;
+                var l_DisplayName = l_User.DisplayName;
+                if (l_DisplayName == null)
+                {
+                    PublishImmediate(l_Users);
+                    return;
+                }
+
+                l_Rows[l_I] = new UserRowSnapshot
+                {
+                    Index = l_I,
+                    ServiceName = l_Users[l_I].Item1.DisplayName,
+                    DisplayName = l_DisplayName,
+                    IsModerator = l_User.IsModerator,
+                    IsBroadcaster = l_User.IsBroadcaster,
+                    IsVip = l_User.IsVip,
+                    IsSubscriber = l_User.IsSubscriber
+                };
+            }
+
+            var l_Request = new RefreshRequest
+            {
+                Revision = l_Revision,
+                Bindings = l_Users,
+                Rows = l_Rows,
+                Comparison = CultureInfo.CurrentCulture.CompareInfo
+            };
+
+            if (m_Preparation != null)
+                m_PendingRefresh = l_Request;
+            else
+                StartPreparation(l_Request);
+        }
+
+        private void PublishImmediate(List<(IChatService, IChatUser)> p_Users)
+        {
             m_Items.Clear();
-            for (var l_I = 0; l_I < Chat.Instance.LastChatUsers.Count; ++l_I)
-                m_Items.Add(new Data.ChatUserListItem(Chat.Instance.LastChatUsers[l_I].Item1, Chat.Instance.LastChatUsers[l_I].Item2));
+            foreach (var l_User in p_Users)
+                m_Items.Add(new Data.ChatUserListItem(l_User.Item1, l_User.Item2));
             m_Items.Sort((x, y) => x.User.DisplayName.CompareTo(y.User.DisplayName));
 
             m_List.SetListItems(m_Items);
+        }
+
+        private static List<PreparedUserRow> PrepareRows(UserRowSnapshot[] p_Rows, CompareInfo p_Comparison)
+        {
+            var l_Result = new List<PreparedUserRow>(p_Rows.Length);
+            foreach (var l_Row in p_Rows)
+            {
+                l_Result.Add(new PreparedUserRow
+                {
+                    Index = l_Row.Index,
+                    DisplayName = l_Row.DisplayName,
+                    Text = Data.ChatUserListItem.FormatText(l_Row.ServiceName, l_Row.DisplayName,
+                        l_Row.IsModerator || l_Row.IsBroadcaster, l_Row.IsVip, l_Row.IsSubscriber)
+                });
+            }
+
+            l_Result.Sort((x, y) => p_Comparison.Compare(x.DisplayName, y.DisplayName, CompareOptions.None));
+            return l_Result;
+        }
+
+        private static Task<List<PreparedUserRow>> StartWorker(UserRowSnapshot[] p_Rows, CompareInfo p_Comparison)
+            => Task.Run(() => PrepareRows(p_Rows, p_Comparison));
+
+        private async void StartPreparation(RefreshRequest p_Request)
+        {
+            var l_Task = StartWorker(p_Request.Rows, p_Request.Comparison);
+            m_Preparation = l_Task;
+
+            List<PreparedUserRow> l_Result = null;
+            Exception l_Error = null;
+            try
+            {
+                l_Result = await l_Task.ConfigureAwait(false);
+            }
+            catch (Exception p_Exception)
+            {
+                l_Error = p_Exception;
+            }
+
+            CP_SDK.Unity.MTMainThreadInvoker.Enqueue(() => CompletePreparation(p_Request, l_Result, l_Error));
+        }
+
+        private void CompletePreparation(RefreshRequest p_Request, List<PreparedUserRow> p_Rows, Exception p_Error)
+        {
+            try
+            {
+                if (!this || !m_ViewActive || !UICreated || !gameObject.activeInHierarchy || !CurrentScreen || p_Request.Revision != m_RefreshRevision)
+                    return;
+
+                if (p_Error != null)
+                {
+                    Logger.Instance.Error(p_Error);
+                    PublishImmediate(p_Request.Bindings);
+                    return;
+                }
+
+                m_Items.Clear();
+                foreach (var l_Row in p_Rows)
+                {
+                    var l_Binding = p_Request.Bindings[l_Row.Index];
+                    m_Items.Add(new Data.ChatUserListItem(l_Binding.Item1, l_Binding.Item2, l_Row.Text));
+                }
+                m_List.SetListItems(m_Items);
+            }
+            finally
+            {
+                m_Preparation = null;
+                var l_Pending = m_PendingRefresh;
+                m_PendingRefresh = null;
+                if (this && m_ViewActive && UICreated && gameObject.activeInHierarchy && CurrentScreen
+                    && l_Pending != null && l_Pending.Revision == m_RefreshRevision)
+                    StartPreparation(l_Pending);
+            }
         }
 
         ////////////////////////////////////////////////////////////////////////////
