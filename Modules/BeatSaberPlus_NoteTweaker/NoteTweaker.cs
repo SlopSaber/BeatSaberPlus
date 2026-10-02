@@ -73,19 +73,11 @@ namespace BeatSaberPlus_NoteTweaker
         {
             public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
             {
-                var l_Token = serializer.Deserialize(reader) as JObject;
-                if (l_Token == null)
+                var l_Token = serializer.Deserialize(reader);
+                // Formatting numeric, date, or custom values must stay with the caller.
+                if (l_Token != null && !(l_Token is JObject) && !(l_Token is JArray)
+                    && !(l_Token is string) && !(l_Token is bool))
                     throw new OwnerParsingRequired();
-
-                // Other Color properties can invoke native conversion getters during deserialization.
-                foreach (var l_Property in l_Token.Properties())
-                {
-                    if (!string.Equals(l_Property.Name, "r", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(l_Property.Name, "g", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(l_Property.Name, "b", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(l_Property.Name, "a", StringComparison.OrdinalIgnoreCase))
-                        throw new OwnerParsingRequired();
-                }
 
                 var l_Serializer = JsonSerializer.Create(new JsonSerializerSettings
                 {
