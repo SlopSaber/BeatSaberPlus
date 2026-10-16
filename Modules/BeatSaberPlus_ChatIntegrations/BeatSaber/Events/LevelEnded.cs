@@ -96,7 +96,11 @@ namespace BeatSaberPlus_ChatIntegrations.BeatSaber.Events
             Int64  l_NoteCount  = l_LevelCompletionData.Data.transformedBeatmapData.cuttableNotesCount;
             Int64  l_HitCount   = l_LevelCompletionData.Results.goodCutsCount;
             Int64  l_MissCount  = l_NoteCount - l_HitCount;
+#if BEAT_SABER_1453
+            float  l_Accuracy   = (float)System.Math.Round(100.0f * CP_SDK_BS.Game.Levels.GetAccuracy(l_LevelCompletionData.MaxMultipliedScore, l_LevelCompletionData.Results.score.multiplied), 2);
+#else
             float  l_Accuracy   = (float)System.Math.Round(100.0f * CP_SDK_BS.Game.Levels.GetAccuracy(l_LevelCompletionData.MaxMultipliedScore, l_LevelCompletionData.Results.multipliedScore), 2);
+#endif
             string l_GameMode   = l_LevelCompletionData.Data.beatmapKey.characteristic.SerializedName();
             string l_Difficulty = l_LevelCompletionData.Data.beatmapKey.difficulty.Name();
 
