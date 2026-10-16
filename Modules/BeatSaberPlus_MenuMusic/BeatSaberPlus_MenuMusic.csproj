@@ -1,6 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
     <PropertyGroup>
-        <GameDirectory Condition="'$(GameDirectory)' == ''">D:\BSManager\BSInstances\1.45.2</GameDirectory>
+        <GameDirectory Condition="'$(GameDirectory)' == ''">D:\BSManager\BSInstances\1.45.3</GameDirectory>
     </PropertyGroup>
 
 
@@ -139,13 +140,19 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\ChatPlexSDK-BS\ChatPlexSDK_BS.csproj">
-            <Project>{84972bac-4faf-4da8-92ed-e3a735af0e92}</Project>
+            <Project>{84972bac-4faf-4da8-92ed-e3a735af0e92}  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="..\..\BSIPA.Layout.targets" Condition="Exists('$(GameDirectory)\IPA\Data\Managed\IPA.Loader.dll') OR Exists('$(BeatSaberDir)\IPA\Data\Managed\IPA.Loader.dll')" />
+</Project>
             <Name>ChatPlexSDK_BS</Name>
         </ProjectReference>
         <ProjectReference Include="..\BeatSaberPlus_ChatRequest\BeatSaberPlus_ChatRequest.csproj">
-            <Project>{eb5ad22c-8b2e-4b17-8eb9-606553db68ae}</Project>
+            <Project>{eb5ad22c-8b2e-4b17-8eb9-606553db68ae}  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="..\..\BSIPA.Layout.targets" Condition="Exists('$(GameDirectory)\IPA\Data\Managed\IPA.Loader.dll') OR Exists('$(BeatSaberDir)\IPA\Data\Managed\IPA.Loader.dll')" />
+</Project>
             <Name>BeatSaberPlus_ChatRequest</Name>
         </ProjectReference>
     </ItemGroup>
 
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="..\..\BSIPA.Layout.targets" Condition="Exists('$(GameDirectory)\IPA\Data\Managed\IPA.Loader.dll') OR Exists('$(BeatSaberDir)\IPA\Data\Managed\IPA.Loader.dll')" />
 </Project>
