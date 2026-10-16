@@ -18,7 +18,7 @@
 
     <!-- Plugin Dependencies -->
     <ItemGroup>
-        <DependsOn Include="BSIPA" Version="^4.3.0" />
+        <DependsOn Include="BSIPA" Version="^5.0.0" />
         <DependsOn Include="ChatPlexSDK_BS" Version="^6.4.5" />
     </ItemGroup>
 
