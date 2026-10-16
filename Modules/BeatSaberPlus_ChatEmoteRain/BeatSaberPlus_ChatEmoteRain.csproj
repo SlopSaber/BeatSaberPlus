@@ -102,9 +102,7 @@
     
     <ItemGroup>
         <ProjectReference Include="..\..\ChatPlexSDK-BS\ChatPlexSDK_BS.csproj">
-            <Project>{84972bac-4faf-4da8-92ed-e3a735af0e92}  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
-  <Import Project="..\..\BSIPA.Layout.targets" Condition="Exists('$(GameDirectory)\IPA\Data\Managed\IPA.Loader.dll') OR Exists('$(BeatSaberDir)\IPA\Data\Managed\IPA.Loader.dll')" />
-</Project>
+            <Project>{84972bac-4faf-4da8-92ed-e3a735af0e92}</Project>
             <Name>ChatPlexSDK_BS</Name>
         </ProjectReference>
     </ItemGroup>
