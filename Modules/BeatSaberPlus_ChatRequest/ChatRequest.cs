@@ -219,6 +219,13 @@ namespace BeatSaberPlus_ChatRequest
                     if (m_LastPlayingLevel != l_CurrentMap)
                     {
                         m_LastPlayingLevel = l_CurrentMap;
+                        m_LastPlayingLevelResponseLink = string.Empty;
+
+                        if (l_CurrentMap == null)
+                        {
+                            m_LastPlayingLevelResponse = string.Empty;
+                            return;
+                        }
 
                         if (CRConfig.Instance.SafeMode2)
                             m_LastPlayingLevelResponse = $" ";
