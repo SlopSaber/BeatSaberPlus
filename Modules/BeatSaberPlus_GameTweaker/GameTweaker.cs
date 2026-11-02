@@ -193,7 +193,7 @@ namespace BeatSaberPlus_GameTweaker
                 return;
 
             var l_DeleteCount = CleanLogsInFolder("Logs", p_EntriesToKeep);
-            Logger.Instance.Warning("[GameTweaker] CleanLogs, " + l_DeleteCount + " old logs entry deleted!");
+            Logger.Instance.Info("[GameTweaker] CleanLogs, " + l_DeleteCount + " old logs entry deleted!");
         }
         /// <summary>
         /// Clean logs in folder
