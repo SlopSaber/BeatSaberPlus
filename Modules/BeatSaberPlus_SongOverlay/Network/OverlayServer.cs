@@ -316,6 +316,7 @@ namespace BeatSaberPlus_SongOverlay.Network
                 yield return new WaitUntil(() => p_CoverTask.IsCompleted || p_CoverTask.Exception != null);
 
                 var l_BackupRenderTexture = RenderTexture.active;
+                Task<string> l_EncodeTask = null;
                 try
                 {
                     var l_Texture           = p_CoverTask.Result.texture;
@@ -328,24 +329,40 @@ namespace BeatSaberPlus_SongOverlay.Network
                     var l_UV    = p_CoverTask.Result.uv[0];
 
                     var l_NewCover = new Texture2D((int)l_Rect.width, (int)l_Rect.height);
+                    try
+                    {
+                        l_NewCover.ReadPixels(new Rect(
+                            l_UV.x * l_Texture.width,
+                            l_Texture.height - l_UV.y * l_Texture.height,
+                            l_Rect.width,
+                            l_Rect.height
+                        ), 0, 0);
 
-                    l_NewCover.ReadPixels(new Rect(
-                        l_UV.x * l_Texture.width,
-                        l_Texture.height - l_UV.y * l_Texture.height,
-                        l_Rect.width,
-                        l_Rect.height
-                    ), 0, 0);
-                    l_NewCover.Apply();
+                        RenderTexture.ReleaseTemporary(l_NewRenderTexture);
 
-                    RenderTexture.ReleaseTemporary(l_NewRenderTexture);
-
-                    m_MapInfoEvent.mapInfoChanged.coverRaw = System.Convert.ToBase64String(ImageConversion.EncodeToPNG(l_NewCover));
+                        // ReadPixels fills the CPU copy, so the pixels can be encoded off the main thread without Apply.
+                        var l_Pixels    = l_NewCover.GetRawTextureData();
+                        var l_Format    = l_NewCover.graphicsFormat;
+                        var l_Width     = (uint)l_NewCover.width;
+                        var l_Height    = (uint)l_NewCover.height;
+                        l_EncodeTask = Task.Run(() => System.Convert.ToBase64String(ImageConversion.EncodeArrayToPNG(l_Pixels, l_Format, l_Width, l_Height)));
+                    }
+                    finally
+                    {
+                        UnityEngine.Object.Destroy(l_NewCover);
+                    }
                 }
                 catch
                 {
                     m_MapInfoEvent.mapInfoChanged.coverRaw = "";
                 }
                 RenderTexture.active = l_BackupRenderTexture;
+
+                if (l_EncodeTask != null)
+                {
+                    yield return new WaitUntil(() => l_EncodeTask.IsCompleted);
+                    m_MapInfoEvent.mapInfoChanged.coverRaw = l_EncodeTask.Status == TaskStatus.RanToCompletion ? l_EncodeTask.Result : "";
+                }
             }
 
             yield return new WaitUntil(() => Resources.FindObjectsOfTypeAll<AudioTimeSyncController>().LastOrDefault());
