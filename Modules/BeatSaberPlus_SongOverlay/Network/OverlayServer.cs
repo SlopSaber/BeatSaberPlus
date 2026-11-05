@@ -315,53 +315,49 @@ namespace BeatSaberPlus_SongOverlay.Network
             {
                 yield return new WaitUntil(() => p_CoverTask.IsCompleted || p_CoverTask.Exception != null);
 
-                var l_BackupRenderTexture = RenderTexture.active;
-                Task<string> l_EncodeTask = null;
+                m_MapInfoEvent.mapInfoChanged.coverRaw = "";
+
+                RenderTexture                               l_NewRenderTexture  = null;
+                UnityEngine.Rendering.AsyncGPUReadbackRequest l_Readback          = default;
+                int l_Width = 0, l_Height = 0;
                 try
                 {
-                    var l_Texture           = p_CoverTask.Result.texture;
-                    var l_NewRenderTexture  = RenderTexture.GetTemporary(l_Texture.width, l_Texture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+                    var l_Texture   = p_CoverTask.Result.texture;
+                    var l_Rect      = p_CoverTask.Result.rect;
+                    var l_UV        = p_CoverTask.Result.uv[0];
 
+                    l_NewRenderTexture = RenderTexture.GetTemporary(l_Texture.width, l_Texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
                     Graphics.Blit(l_Texture, l_NewRenderTexture);
-                    RenderTexture.active = l_NewRenderTexture;
 
-                    var l_Rect  = p_CoverTask.Result.rect;
-                    var l_UV    = p_CoverTask.Result.uv[0];
-
-                    var l_NewCover = new Texture2D((int)l_Rect.width, (int)l_Rect.height);
-                    try
-                    {
-                        l_NewCover.ReadPixels(new Rect(
-                            l_UV.x * l_Texture.width,
-                            l_Texture.height - l_UV.y * l_Texture.height,
-                            l_Rect.width,
-                            l_Rect.height
-                        ), 0, 0);
-
-                        RenderTexture.ReleaseTemporary(l_NewRenderTexture);
-
-                        // ReadPixels fills the CPU copy, so the pixels can be encoded off the main thread without Apply.
-                        var l_Pixels    = l_NewCover.GetRawTextureData();
-                        var l_Format    = l_NewCover.graphicsFormat;
-                        var l_Width     = (uint)l_NewCover.width;
-                        var l_Height    = (uint)l_NewCover.height;
-                        l_EncodeTask = Task.Run(() => System.Convert.ToBase64String(ImageConversion.EncodeArrayToPNG(l_Pixels, l_Format, l_Width, l_Height)));
-                    }
-                    finally
-                    {
-                        UnityEngine.Object.Destroy(l_NewCover);
-                    }
+                    // The readback completes a few frames later instead of stalling this frame on the GPU like ReadPixels.
+                    int l_X = Mathf.Clamp(Mathf.RoundToInt(l_UV.x * l_Texture.width), 0, l_Texture.width - 1);
+                    int l_Y = Mathf.Clamp(Mathf.RoundToInt(l_Texture.height - l_UV.y * l_Texture.height), 0, l_Texture.height - 1);
+                    l_Width     = Mathf.Clamp((int)l_Rect.width, 1, l_Texture.width - l_X);
+                    l_Height    = Mathf.Clamp((int)l_Rect.height, 1, l_Texture.height - l_Y);
+                    l_Readback  = UnityEngine.Rendering.AsyncGPUReadback.Request(l_NewRenderTexture, 0, l_X, l_Width, l_Y, l_Height, 0, 1, TextureFormat.RGBA32);
                 }
                 catch
                 {
-                    m_MapInfoEvent.mapInfoChanged.coverRaw = "";
+                    if (l_NewRenderTexture != null)
+                        RenderTexture.ReleaseTemporary(l_NewRenderTexture);
+                    l_NewRenderTexture = null;
                 }
-                RenderTexture.active = l_BackupRenderTexture;
 
-                if (l_EncodeTask != null)
+                if (l_NewRenderTexture != null)
                 {
-                    yield return new WaitUntil(() => l_EncodeTask.IsCompleted);
-                    m_MapInfoEvent.mapInfoChanged.coverRaw = l_EncodeTask.Status == TaskStatus.RanToCompletion ? l_EncodeTask.Result : "";
+                    yield return new WaitUntil(() => l_Readback.done);
+                    RenderTexture.ReleaseTemporary(l_NewRenderTexture);
+
+                    if (!l_Readback.hasError)
+                    {
+                        var l_Pixels        = l_Readback.GetData<byte>().ToArray();
+                        uint l_PngWidth     = (uint)l_Width, l_PngHeight = (uint)l_Height;
+                        var l_EncodeTask    = Task.Run(() => System.Convert.ToBase64String(ImageConversion.EncodeArrayToPNG(l_Pixels, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, l_PngWidth, l_PngHeight)));
+
+                        yield return new WaitUntil(() => l_EncodeTask.IsCompleted);
+                        if (l_EncodeTask.Status == TaskStatus.RanToCompletion)
+                            m_MapInfoEvent.mapInfoChanged.coverRaw = l_EncodeTask.Result;
+                    }
                 }
             }
 
